@@ -16,10 +16,10 @@ export function getGeminiModel(): GenerativeModel {
 }
 
 export type PookieResponse = 
-  | { type: 'idle'; seconds: number }
-  | { type: 'say'; message: string }
-  | { type: 'move-to-facility'; facilityId: string }
-  | { type: 'move-to-pookie'; pookieName: string };
+  | { type: 'idle'; seconds: number, thought: string }
+  | { type: 'say'; message: string, thought: string }
+  | { type: 'move-to-facility'; facilityId: string, thought: string }
+  | { type: 'move-to-pookie'; pookieName: string, thought: string };
 
 export async function askPookie(prompt: string, facilityIds: string[], pookieNames: string[]): Promise<PookieResponse> {
   const model = getGeminiModel();
@@ -44,10 +44,10 @@ export async function askPookie(prompt: string, facilityIds: string[], pookieNam
     
     // Validate the response
     if (parsed.type === 'idle' && typeof parsed.seconds === 'number') {
-      return { type: 'idle', seconds: Math.min(10, Math.max(1, parsed.seconds)) };
+      return { type: 'idle', seconds: Math.min(10, Math.max(1, parsed.seconds)), thought: parsed.thought };
     }
     if (parsed.type === 'say' && typeof parsed.message === 'string') {
-      return { type: 'say', message: parsed.message.slice(0, 200) };
+      return { type: 'say', message: parsed.message.slice(0, 200), thought: parsed.thought };
     }
     if (parsed.type === 'move-to-facility' && facilityIds.includes(parsed.facilityId)) {
       return parsed;
@@ -58,10 +58,10 @@ export async function askPookie(prompt: string, facilityIds: string[], pookieNam
     
     // Invalid response, default to idle
     console.warn('Invalid Gemini response, defaulting to idle:', text);
-    return { type: 'idle', seconds: 3 };
+    return { type: 'idle', seconds: 3, thought: 'I need to think about what to do next' };
   } catch (error) {
     console.error('Gemini API error:', error);
-    return { type: 'idle', seconds: 3 };
+    return { type: 'idle', seconds: 3, thought: 'I need to think about what to do next' };
   }
 }
 

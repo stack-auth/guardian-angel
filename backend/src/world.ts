@@ -174,7 +174,7 @@ function generatePookiePersonality(): string {
     "to have as much food as possible",
     "to fall in love",
     "to get revenge on a bully",
-    "to save the world from a disaster",
+    "to save the world from a disaster that you are 100% sure exists, and let everyone know about it.",
     "to be mean to other pookies for no reason (you use insults such as 'pestlepuff' or 'stinkybun')",
   ];
 
@@ -385,7 +385,7 @@ export class World {
             ${Object.entries(this.getWorldState().level.facilities).map(([facilityId, facility]) => `- ${facility.displayName} (id: ${facilityId}) is at ${facility.x}, ${facility.y}. When interacting with it: "${facility.interactionPrompt}". Its variables are as follows: ${JSON.stringify(facility.variables)}`).join("\n")}
 
             You MUST respond with ONLY a valid JSON object (no markdown, no explanation) in one of these formats:
-            - {"type": "idle", "seconds": <number between 1-10>, "thought": "<short reasoning, max 1 sentence>"} - In this case, you will stay idle for a few seconds, and then think again. If a pookie or guardian angel talks to you during this time, you will be interrupted. This is great when you're waiting for something, like a response from another pookie.
+            - {"type": "idle", "seconds": <number between 5-20>, "thought": "<short reasoning, max 1 sentence>"} - In this case, you will stay idle for a few seconds, and then think again. If a pookie or guardian angel talks to you during this time, you will be interrupted. This is great when you're waiting for something, like a response from another pookie.
             - {"type": "say", "message": "<short message, max 1 sentence>", "thought": "<short reasoning, max 1 sentence>"} - In this case, pookies near you will hear you and be able to interact with you. What you say should be relatively short, 1 sentence maximum
             - {"type": "move-to-facility", "facilityId": "<facility id>", "thought": "<short reasoning, max 1 sentence>"} - to move to a facility
             - {"type": "move-to-pookie", "pookieName": "<pookie name>", "thought": "<short reasoning, max 1 sentence>"} - You can move either to a different pookie or to a facility.
@@ -409,8 +409,15 @@ export class World {
               console.log(`Pookie ${pookieName} decided:`, chosenResponse);
             } catch (error) {
               console.error(`Error getting Gemini response for ${pookieName}:`, error);
-              chosenResponse = { type: 'idle', seconds: 3 };
+              chosenResponse = { type: 'idle', seconds: 3, thought: "Guess I thought something that didn't make sense. Pookieverse glitch!" };
             }
+
+            this._changeState().pookies[pookieName].thoughts.push({
+              source: 'self',
+              text: chosenResponse.thought,
+              spokenLoudly: false,
+              timestampMillis: now,
+            });
 
             const newPookies = this.getWorldState().pookies;
             const pookie = newPookies[pookieName];
@@ -423,6 +430,11 @@ export class World {
               ) {
                 switch (chosenResponse.type) {
                   case 'idle':
+                    this._changeState().pookies[pookieName].thoughts.push({
+                      source: 'self-action-change',
+                      text: `Idling for ${chosenResponse.seconds} seconds.`,
+                      timestampMillis: now,
+                    });
                     this._changeState().pookies[pookieName].currentAction = {
                       type: 'idle',
                       x: pookie.currentAction.x,
@@ -434,6 +446,11 @@ export class World {
                   case 'move-to-facility':
                     const facility = this.getWorldState().level.facilities[chosenResponse.facilityId];
                     const dist = distance(pookie.currentAction.x, pookie.currentAction.y, facility.x, facility.y);
+                    this._changeState().pookies[pookieName].thoughts.push({
+                      source: 'self-action-change',
+                      text: `Moving towards facility ${facility.displayName}`,
+                      timestampMillis: now,
+                    });
                     this._changeState().pookies[pookieName].currentAction = {
                       type: 'move',
                       startX: pookie.currentAction.x,
@@ -468,7 +485,7 @@ export class World {
                         x: this._calculatePookieLocation(newPookies[otherPookieName], now).x,
                         y: this._calculatePookieLocation(newPookies[otherPookieName], now).y,
                         sinceTimestampMillis: now,
-                        minIdleDurationMillis: 500,
+                        minIdleDurationMillis: 3000,
                       };
                     }
                     this._changeState().pookies[pookieName].currentAction = {
@@ -480,6 +497,11 @@ export class World {
                     };
                     break;
                   case 'move-to-pookie':
+                    this._changeState().pookies[pookieName].thoughts.push({
+                      source: 'self-action-change',
+                      text: `Moving towards pookie ${chosenResponse.pookieName}`,
+                      timestampMillis: now,
+                    });
                     const targetPookie = this.getWorldState().pookies[chosenResponse.pookieName];
                     if (targetPookie) {
                       const targetLocation = this._calculatePookieLocation(targetPookie, now);
