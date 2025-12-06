@@ -1,6 +1,6 @@
 // Note: All x, y, width, height values are in units and can be fractional (use backgroundImage.scale to convert to display pixels).
 
-import { distance, randomElement, runAsynchronously } from "./util.ts";
+import { distance, randomElement, runAsynchronously } from "./util.js";
 
 type WorldState = {
   level: CustomLevel,
@@ -145,7 +145,9 @@ const POOKIE_NAMES = [
 ];
 
 
-class World {
+export type { WorldState, CustomLevel, Pookie, PookieThought, PookieAction, PookieInventoryItem };
+
+export class World {
   /** Note: Do not change this directly. Instead, use _changeState() to change the world state. */
   private _worldStateDoNotUseDirectly: WorldState;
   private _worldStateChangeCallbacks: Map<string, (worldState: WorldState) => void>;
@@ -206,6 +208,19 @@ class World {
     this._worldStateDoNotUseDirectly = parsed;
     this._notifyWorldStateChange();
     return this._worldStateDoNotUseDirectly;
+  }
+
+  public sendGuardianAngelMessage(pookieName: string, imageUrl: string): "pookie-not-found" | "success" {
+    const pookie = this.getWorldState().pookies[pookieName];
+    if (!pookie) {
+      return "pookie-not-found";
+    }
+    this._changeState().pookies[pookieName].thoughts.push({
+      source: 'guardian-angel',
+      imageUrl,
+      timestampMillis: Date.now(),
+    });
+    return "success";
   }
 
   public join(): { pookieName: string } | "max-players-reached" {

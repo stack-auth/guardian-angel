@@ -1,16 +1,18 @@
-import type { WorldsStore } from '../types.js';
+import type { WorldState } from '../world.js';
 
-export function renderHomePage(worlds: WorldsStore, maxPookies: number, port: number): string {
+export type WorldsViewData = Record<string, { state: WorldState }>;
+
+export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port: number): string {
   const worldIds = Object.keys(worlds);
   
   const worldsHtml = worldIds.length === 0 
-    ? '<p class="empty">No games currently running. Use the form below to join a world!</p>'
+    ? '<p class="empty">No games currently running. Create a world first using POST /worlds/create!</p>'
     : worldIds.map(worldId => {
         const world = worlds[worldId];
-        const pookieIds = Object.keys(world.state.pookies);
-        const pookieCount = pookieIds.length;
+        const pookieNames = Object.keys(world.state.pookies);
+        const pookieCount = pookieNames.length;
         const startTime = new Date(world.state.startTimestampMillis).toLocaleString();
-        const pookieOptions = pookieIds.map(id => `<option value="${id}">${id}</option>`).join('');
+        const pookieOptions = pookieNames.map(name => `<option value="${name}">${name}</option>`).join('');
         return `
           <div class="world-card">
             <h2>${worldId}</h2>
@@ -129,7 +131,7 @@ export function renderHomePage(worlds: WorldsStore, maxPookies: number, port: nu
           padding: 0.4rem 0.8rem;
           font-size: 0.85rem;
         }
-        .input {
+        .input, .textarea {
           padding: 0.5rem 0.75rem;
           border-radius: 6px;
           border: 1px solid rgba(255,255,255,0.2);
@@ -139,7 +141,12 @@ export function renderHomePage(worlds: WorldsStore, maxPookies: number, port: nu
           flex: 1;
           min-width: 150px;
         }
-        .input:focus {
+        .textarea {
+          min-height: 100px;
+          font-family: 'Fira Code', monospace;
+          font-size: 0.8rem;
+        }
+        .input:focus, .textarea:focus {
           outline: none;
           border-color: #e94560;
         }
@@ -163,6 +170,12 @@ export function renderHomePage(worlds: WorldsStore, maxPookies: number, port: nu
           gap: 0.5rem;
           margin-bottom: 0.5rem;
           flex-wrap: wrap;
+        }
+        .form-col {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          flex: 1;
         }
         .result-box {
           background: rgba(0,0,0,0.4);
@@ -190,6 +203,11 @@ export function renderHomePage(worlds: WorldsStore, maxPookies: number, port: nu
           background: rgba(255,107,107,0.2);
           color: #ff6b6b;
         }
+        .code-hint {
+          font-size: 0.75rem;
+          color: #8892b0;
+          margin-top: 0.25rem;
+        }
       </style>
     </head>
     <body>
@@ -200,11 +218,34 @@ export function renderHomePage(worlds: WorldsStore, maxPookies: number, port: nu
         </header>
         
         <div class="section">
-          <h3>🎮 Join or Create World</h3>
+          <h3>🆕 Create World</h3>
           <div class="form-row">
-            <input type="text" id="newWorldId" class="input" placeholder="World ID (e.g., my-world)" style="max-width: 300px;">
-            <button class="btn" onclick="joinWorld(document.getElementById('newWorldId').value)">Join World</button>
-            <button class="btn btn-secondary" onclick="viewState(document.getElementById('newWorldId').value)">View State</button>
+            <input type="text" id="createWorldId" class="input" placeholder="World ID (e.g., my-world)" style="max-width: 200px;">
+            <button class="btn" onclick="createWorld()">Create World</button>
+          </div>
+          <div class="form-col" style="margin-top: 0.5rem;">
+            <textarea id="levelJson" class="textarea" placeholder='Level JSON (CustomLevel object)'>{
+  "maxPlayers": 4,
+  "width": 800,
+  "height": 600,
+  "speechDistance": 100,
+  "walkSpeedPerSecond": 50,
+  "backgroundImage": {
+    "url": "https://example.com/bg.png",
+    "scale": 0.5
+  },
+  "itemTypes": {},
+  "facilities": {
+    "well": {
+      "x": 100,
+      "y": 200,
+      "displayName": "Water Well",
+      "interactionPrompt": "Press E to drink",
+      "interactionName": "drink",
+      "variables": { "waterLevel": 100 }
+    }
+  }
+}</textarea>
           </div>
         </div>
 
@@ -217,7 +258,7 @@ export function renderHomePage(worlds: WorldsStore, maxPookies: number, port: nu
           <h3>💬 Guardian Angel Chat</h3>
           <div class="form-row">
             <input type="text" id="chatWorldId" class="input" placeholder="World ID" style="max-width: 200px;">
-            <input type="text" id="chatPookieId" class="input" placeholder="Pookie ID" style="max-width: 250px;">
+            <input type="text" id="chatPookieName" class="input" placeholder="Pookie Name" style="max-width: 200px;">
             <input type="text" id="chatImageUrl" class="input" placeholder="Image URL">
             <button class="btn" onclick="sendChatManual()">Send</button>
           </div>
@@ -245,6 +286,30 @@ export function renderHomePage(worlds: WorldsStore, maxPookies: number, port: nu
           pre.className = isError ? 'error' : 'success';
           pre.textContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
           box.classList.add('show');
+        }
+
+        async function createWorld() {
+          const worldId = document.getElementById('createWorldId').value;
+          const levelJson = document.getElementById('levelJson').value;
+          if (!worldId) return alert('Please enter a World ID');
+          let level;
+          try {
+            level = JSON.parse(levelJson);
+          } catch (e) {
+            return alert('Invalid JSON for level: ' + e.message);
+          }
+          try {
+            const res = await fetch('/worlds/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ worldId, level })
+            });
+            const data = await res.json();
+            showResult(data, !res.ok);
+            if (res.ok) setTimeout(() => location.reload(), 500);
+          } catch (e) {
+            showResult(e.message, true);
+          }
         }
 
         async function joinWorld(worldId) {
@@ -299,11 +364,11 @@ export function renderHomePage(worlds: WorldsStore, maxPookies: number, port: nu
         }
 
         async function sendChat(worldId) {
-          const pookieId = document.getElementById('pookie-' + worldId).value;
+          const pookieName = document.getElementById('pookie-' + worldId).value;
           const imageUrl = document.getElementById('imageUrl-' + worldId).value;
           if (!imageUrl) return alert('Please enter an image URL');
           try {
-            const res = await fetch('/worlds/' + worldId + '/pookies/' + pookieId + '/guardian-angel/chat', {
+            const res = await fetch('/worlds/' + worldId + '/pookies/' + pookieName + '/guardian-angel/chat', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ imageUrl })
@@ -317,11 +382,11 @@ export function renderHomePage(worlds: WorldsStore, maxPookies: number, port: nu
 
         async function sendChatManual() {
           const worldId = document.getElementById('chatWorldId').value;
-          const pookieId = document.getElementById('chatPookieId').value;
+          const pookieName = document.getElementById('chatPookieName').value;
           const imageUrl = document.getElementById('chatImageUrl').value;
-          if (!worldId || !pookieId || !imageUrl) return alert('Please fill all fields');
+          if (!worldId || !pookieName || !imageUrl) return alert('Please fill all fields');
           try {
-            const res = await fetch('/worlds/' + worldId + '/pookies/' + pookieId + '/guardian-angel/chat', {
+            const res = await fetch('/worlds/' + worldId + '/pookies/' + pookieName + '/guardian-angel/chat', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ imageUrl })
@@ -337,4 +402,3 @@ export function renderHomePage(worlds: WorldsStore, maxPookies: number, port: nu
     </html>
   `;
 }
-
