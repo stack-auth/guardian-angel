@@ -244,16 +244,21 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
           </div>
           <div class="form-col" style="margin-top: 0.5rem;">
             <textarea id="levelJson" class="textarea" placeholder='Level JSON (CustomLevel object)'>{
-  "maxPlayers": 4,
+  "maxPookies": 4,
   "width": 800,
   "height": 600,
   "speechDistance": 100,
   "walkSpeedPerSecond": 50,
+  "facilityInteractionDistance": 30,
   "backgroundImage": {
     "url": "https://example.com/bg.png",
     "scale": 0.5
   },
-  "itemTypes": {},
+  "itemTypes": {
+    "berry": { "displayName": "Berry", "description": "A tasty berry", "itemSprite": { "url": "" } },
+    "stick": { "displayName": "Stick", "description": "A wooden stick", "itemSprite": { "url": "" } },
+    "stone": { "displayName": "Stone", "description": "A small stone", "itemSprite": { "url": "" } }
+  },
   "facilities": {
     "well": {
       "x": 100,
@@ -261,6 +266,7 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
       "displayName": "Water Well",
       "interactionPrompt": "Press E to drink",
       "interactionName": "drink",
+      "interactionDurationMillis": 2000,
       "variables": { "waterLevel": 100 }
     }
   }

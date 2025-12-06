@@ -15,11 +15,16 @@ export function getGeminiModel(): GenerativeModel {
   return model;
 }
 
+export type TradeItems = { itemId: string; amount: number }[];
+
 export type PookieResponse = 
-  | { type: 'idle'; seconds: number, thought: string }
-  | { type: 'say'; message: string, thought: string }
-  | { type: 'move-to-facility'; facilityId: string, thought: string }
-  | { type: 'move-to-pookie'; pookieName: string, thought: string };
+  | { type: 'idle'; seconds: number; thought: string }
+  | { type: 'say'; message: string; thought: string }
+  | { type: 'move-to-facility'; facilityId: string; thought: string }
+  | { type: 'move-to-pookie'; pookieName: string; thought: string }
+  | { type: 'offer-trade'; targetPookieName: string; itemsOffered: TradeItems; itemsRequested: TradeItems; thought: string }
+  | { type: 'accept-offer'; offerId: string; thought: string }
+  | { type: 'reject-offer'; offerId: string; thought: string };
 
 export async function askPookie(prompt: string, facilityIds: string[], pookieNames: string[]): Promise<PookieResponse> {
   const model = getGeminiModel();
@@ -44,16 +49,25 @@ export async function askPookie(prompt: string, facilityIds: string[], pookieNam
     
     // Validate the response
     if (parsed.type === 'idle' && typeof parsed.seconds === 'number') {
-      return { type: 'idle', seconds: Math.min(10, Math.max(1, parsed.seconds)), thought: parsed.thought };
+      return { type: 'idle', seconds: Math.min(20, Math.max(1, parsed.seconds)), thought: parsed.thought ?? '' };
     }
     if (parsed.type === 'say' && typeof parsed.message === 'string') {
-      return { type: 'say', message: parsed.message.slice(0, 200), thought: parsed.thought };
+      return { type: 'say', message: parsed.message.slice(0, 200), thought: parsed.thought ?? '' };
     }
     if (parsed.type === 'move-to-facility' && facilityIds.includes(parsed.facilityId)) {
-      return parsed;
+      return { ...parsed, thought: parsed.thought ?? '' };
     }
     if (parsed.type === 'move-to-pookie' && pookieNames.includes(parsed.pookieName)) {
-      return parsed;
+      return { ...parsed, thought: parsed.thought ?? '' };
+    }
+    if (parsed.type === 'offer-trade' && pookieNames.includes(parsed.targetPookieName) && Array.isArray(parsed.itemsOffered) && Array.isArray(parsed.itemsRequested)) {
+      return { ...parsed, thought: parsed.thought ?? '' };
+    }
+    if (parsed.type === 'accept-offer' && typeof parsed.offerId === 'string') {
+      return { ...parsed, thought: parsed.thought ?? '' };
+    }
+    if (parsed.type === 'reject-offer' && typeof parsed.offerId === 'string') {
+      return { ...parsed, thought: parsed.thought ?? '' };
     }
     
     // Invalid response, default to idle

@@ -47,7 +47,7 @@ app.get('/', (_req, res) => {
   const worldsData = getWorldsForHomePage();
   // Get max players from first world, or default to 4
   const firstWorld = worlds.values().next().value;
-  const maxPookies = firstWorld?.getWorldState().level.maxPlayers ?? 4;
+  const maxPookies = firstWorld?.getWorldState().level.maxPookies ?? 4;
   res.send(renderHomePage(worldsData, maxPookies, PORT));
 });
 
@@ -96,7 +96,7 @@ app.post('/worlds/:worldId/join', (req, res) => {
   if (result === 'max-players-reached') {
     res.status(400).json({
       error: 'Maximum number of pookies reached',
-      maxPookies: world.getWorldState().level.maxPlayers,
+      maxPookies: world.getWorldState().level.maxPookies,
     });
     return;
   }
