@@ -22,6 +22,7 @@ type Pookie = {
 
 type CustomLevel = {
   maxPookies: number,
+  worldPrompt: string,
   width: number,
   height: number,
   speechDistance: number,
@@ -474,6 +475,8 @@ export class World {
           const prompt = `
 
             You are a pookie in the Pookieverse. Your name is ${pookieName}. ${pookie.personality}
+
+            ${this.getWorldState().level.worldPrompt}
             
             Health: ${pookie.health}/100. Food: ${pookie.food}/100.
             
