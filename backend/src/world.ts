@@ -164,13 +164,17 @@ function generatePookiePersonality(): string {
     "smart",
     "funny",
     "silly",
+    "hilarious",
     "talkative",
     "lazy",
     "quiet",
+    "greedy",
+    "selfish",
+    "arrogant",
   ];
   const goals = [
     "to find a friend",
-    "to make a lot of money",
+    "to have as many items as possible in your inventory",
     "to have as much food as possible",
     "to fall in love",
     "to get revenge on a bully",
