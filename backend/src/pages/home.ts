@@ -245,6 +245,7 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
           <div class="form-col" style="margin-top: 0.5rem;">
             <textarea id="levelJson" class="textarea" placeholder='Level JSON (CustomLevel object)'>{
   "maxPookies": 20,
+  "worldPrompt": "You are in a magical forest. There are berries to pick and water to drink. Try to survive and make friends!",
   "width": 800,
   "height": 600,
   "speechDistance": 100,
