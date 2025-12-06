@@ -1,9 +1,21 @@
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 import express from 'express';
 import cors from 'cors';
 import expressWs from 'express-ws';
 import type { WebSocket } from 'ws';
 import { World, type CustomLevel, type WorldState } from './world.js';
 import { renderHomePage } from './pages/home.js';
+import { initGemini } from './gemini.js';
+
+// Initialize Gemini
+const geminiApiKey = process.env.GEMINI_API_KEY;
+if (!geminiApiKey) {
+  console.warn('Warning: GEMINI_API_KEY not set. Pookie AI will use random actions.');
+} else {
+  initGemini(geminiApiKey);
+  console.log('Gemini AI initialized.');
+}
 
 const { app } = expressWs(express());
 

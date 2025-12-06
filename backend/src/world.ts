@@ -1,6 +1,7 @@
 // Note: All x, y, width, height values are in units and can be fractional (use backgroundImage.scale to convert to display pixels).
 
 import { distance, randomElement, runAsynchronously } from "./util.js";
+import { askPookie, type PookieResponse } from "./gemini.js";
 
 type WorldState = {
   level: CustomLevel,
@@ -11,6 +12,7 @@ type WorldState = {
 }
 
 type Pookie = {
+  personality: string,
   currentAction: PookieAction,
   inventory: PookieInventoryItem[],
   thoughts: PookieThought[],
@@ -152,6 +154,32 @@ const POOKIE_NAMES = [
   'Puddington',
 ];
 
+function generatePookiePersonality(): string {
+  const adjectives = [
+    "friendly",
+    "curious",
+    "shy",
+    "brave",
+    "smart",
+    "funny",
+    "silly",
+    "talkative",
+    "lazy",
+    "quiet",
+  ];
+  const goals = [
+    "to find a friend",
+    "to make a lot of money",
+    "to have as much food as possible",
+    "to fall in love",
+    "to get revenge on a bully",
+    "to save the world from a disaster",
+    "to be mean to other pookies for no reason (you use insults such as 'pestlepuff' or 'stinkybun')",
+  ];
+
+  return `You are a ${randomElement(adjectives)} and ${randomElement(adjectives)} pookie who wants ${randomElement(goals)}.`;
+}
+
 
 export type { WorldState, CustomLevel, Pookie, PookieThought, PookieAction, PookieInventoryItem };
 
@@ -241,6 +269,7 @@ export class World {
       pookieName = i++ > 100 ? crypto.randomUUID() : POOKIE_NAMES[Math.floor(Math.random() * POOKIE_NAMES.length)];
     }
     this._changeState().pookies[pookieName] = {
+      personality: generatePookiePersonality(),
       currentAction: {
         type: 'idle',
         x: Math.random() * this.getWorldState().level.width,
@@ -338,7 +367,7 @@ export class World {
           }
           const prompt = `
 
-            You are a pookie in the Pookieverse. Your name is ${pookieName}.
+            You are a pookie in the Pookieverse. Your name is ${pookieName}. ${pookie.personality}
             
             Health: ${pookie.health}/100. Food: ${pookie.food}/100.
             
@@ -348,17 +377,17 @@ export class World {
 
             You have a guardian angel. It can see what happens around you and tries to be helpful. No one else can see or hear your guardian angel. Usually you should listen to your guardian angel, but if you feel like your guardian angel has been giving you bad advice, you can start ignoring it.
 
-            You have multiple things you can do:
-            - Idle. In this case, you will stay idle for a few seconds, and then think again. If a pookie or guardian angel talks to you during this time, you will be interrupted. This is great when you're waiting for something, like a response from another pookie.
-            - Say something. In this case, pookies near you will hear you and be able to interact with you. What you say should be relatively short, 1 sentence maximum
-            - Interact with a facility. You can only do this if you're close to a facility.
-            - Move. You can move either to a different pookie or to a facility.
-
             Here are all the pookies in the Pookieverse:
             ${Object.keys(this.getWorldState().pookies).map(pookieName => `- ${describeOtherPookie(pookieName)}`).join("\n")}
 
             Here are all the facilities in the Pookieverse:
-            ${Object.entries(this.getWorldState().level.facilities).map(([facilityId, facility]) => `- ${facility.displayName} is at ${facility.x}, ${facility.y}. When interacting with it: "${facility.interactionPrompt}". Its variables are as follows: ${JSON.stringify(facility.variables)}`).join("\n")}
+            ${Object.entries(this.getWorldState().level.facilities).map(([facilityId, facility]) => `- ${facility.displayName} (id: ${facilityId}) is at ${facility.x}, ${facility.y}. When interacting with it: "${facility.interactionPrompt}". Its variables are as follows: ${JSON.stringify(facility.variables)}`).join("\n")}
+
+            You MUST respond with ONLY a valid JSON object (no markdown, no explanation) in one of these formats:
+            - {"type": "idle", "seconds": <number between 1-10>, "thought": "<short reasoning, max 1 sentence>"} - In this case, you will stay idle for a few seconds, and then think again. If a pookie or guardian angel talks to you during this time, you will be interrupted. This is great when you're waiting for something, like a response from another pookie.
+            - {"type": "say", "message": "<short message, max 1 sentence>", "thought": "<short reasoning, max 1 sentence>"} - In this case, pookies near you will hear you and be able to interact with you. What you say should be relatively short, 1 sentence maximum
+            - {"type": "move-to-facility", "facilityId": "<facility id>", "thought": "<short reasoning, max 1 sentence>"} - to move to a facility
+            - {"type": "move-to-pookie", "pookieName": "<pookie name>", "thought": "<short reasoning, max 1 sentence>"} - You can move either to a different pookie or to a facility.
             
             Below is your memory:
 
@@ -368,16 +397,19 @@ export class World {
 
           runAsynchronously(async () => {
             const now = Date.now();
-            // TODO: Implement LLM chat. For now, we just print the prompt to the console and choose a random action.
-
-            console.log("Pookie prompt:", prompt);
-            const thought = "This is an example thought. It doesn't really do anything.";
-            const possibleResponses = [
-              { type: 'idle', seconds: 3 },
-              { type: 'move-to-facility', facilityId: randomElement(Object.keys(this.getWorldState().level.facilities)) },
-              { type: 'say', message: `Hello${pookiesWithinSpeechDistance.size > 0 ? ` ${[...pookiesWithinSpeechDistance].map(pookieName => `"${pookieName}"`).join(" & ")}` : ""}, I'm a pookie!` },
-            ] as const;
-            const chosenResponse = possibleResponses[Math.floor(Math.random() * possibleResponses.length)];
+            
+            // Use Gemini to decide what the pookie should do
+            const facilityIds = Object.keys(this.getWorldState().level.facilities);
+            const otherPookieNames = Object.keys(this.getWorldState().pookies).filter(name => name !== pookieName);
+            
+            let chosenResponse: PookieResponse;
+            try {
+              chosenResponse = await askPookie(prompt, facilityIds, otherPookieNames);
+              console.log(`Pookie ${pookieName} decided:`, chosenResponse);
+            } catch (error) {
+              console.error(`Error getting Gemini response for ${pookieName}:`, error);
+              chosenResponse = { type: 'idle', seconds: 3 };
+            }
 
             const newPookies = this.getWorldState().pookies;
             const pookie = newPookies[pookieName];
@@ -435,7 +467,7 @@ export class World {
                         x: this._calculatePookieLocation(newPookies[otherPookieName], now).x,
                         y: this._calculatePookieLocation(newPookies[otherPookieName], now).y,
                         sinceTimestampMillis: now,
-                        minIdleDurationMillis: 0,
+                        minIdleDurationMillis: 500,
                       };
                     }
                     this._changeState().pookies[pookieName].currentAction = {
@@ -446,8 +478,34 @@ export class World {
                       minIdleDurationMillis: 3_000,
                     };
                     break;
+                  case 'move-to-pookie':
+                    const targetPookie = this.getWorldState().pookies[chosenResponse.pookieName];
+                    if (targetPookie) {
+                      const targetLocation = this._calculatePookieLocation(targetPookie, now);
+                      const distToPookie = distance(pookie.currentAction.x, pookie.currentAction.y, targetLocation.x, targetLocation.y);
+                      this._changeState().pookies[pookieName].currentAction = {
+                        type: 'move',
+                        startX: pookie.currentAction.x,
+                        startY: pookie.currentAction.y,
+                        startTimestampMillis: now + 1_000,
+                        endX: targetLocation.x,
+                        endY: targetLocation.y,
+                        endTimestampMillis: now + 1_000 + distToPookie / this.getWorldState().level.walkSpeedPerSecond * 1000,
+                      };
+                    } else {
+                      // Target pookie no longer exists, just idle
+                      this._changeState().pookies[pookieName].currentAction = {
+                        type: 'idle',
+                        x: pookie.currentAction.x,
+                        y: pookie.currentAction.y,
+                        sinceTimestampMillis: now,
+                        minIdleDurationMillis: 3_000,
+                      };
+                    }
+                    break;
                   default:
-                    throw new Error(`Unknown response: ${JSON.stringify(chosenResponse)}`);
+                    const _exhaustiveCheck: never = chosenResponse;
+                    throw new Error(`Unknown response: ${JSON.stringify(_exhaustiveCheck)}`);
                 }
               }
             }

@@ -1,0 +1,67 @@
+import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
+
+let genAI: GoogleGenerativeAI | null = null;
+let model: GenerativeModel | null = null;
+
+export function initGemini(apiKey: string) {
+  genAI = new GoogleGenerativeAI(apiKey);
+  model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+}
+
+export function getGeminiModel(): GenerativeModel {
+  if (!model) {
+    throw new Error('Gemini not initialized. Call initGemini() first.');
+  }
+  return model;
+}
+
+export type PookieResponse = 
+  | { type: 'idle'; seconds: number }
+  | { type: 'say'; message: string }
+  | { type: 'move-to-facility'; facilityId: string }
+  | { type: 'move-to-pookie'; pookieName: string };
+
+export async function askPookie(prompt: string, facilityIds: string[], pookieNames: string[]): Promise<PookieResponse> {
+  const model = getGeminiModel();
+  
+  const fullPrompt = prompt;
+  
+  try {
+    const result = await model.generateContent(fullPrompt);
+    const response = result.response;
+    const text = response.text().trim();
+    
+    // Try to extract JSON from the response
+    let jsonStr = text;
+    
+    // Handle markdown code blocks
+    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1].trim();
+    }
+    
+    const parsed = JSON.parse(jsonStr) as PookieResponse;
+    
+    // Validate the response
+    if (parsed.type === 'idle' && typeof parsed.seconds === 'number') {
+      return { type: 'idle', seconds: Math.min(10, Math.max(1, parsed.seconds)) };
+    }
+    if (parsed.type === 'say' && typeof parsed.message === 'string') {
+      return { type: 'say', message: parsed.message.slice(0, 200) };
+    }
+    if (parsed.type === 'move-to-facility' && facilityIds.includes(parsed.facilityId)) {
+      return parsed;
+    }
+    if (parsed.type === 'move-to-pookie' && pookieNames.includes(parsed.pookieName)) {
+      return parsed;
+    }
+    
+    // Invalid response, default to idle
+    console.warn('Invalid Gemini response, defaulting to idle:', text);
+    return { type: 'idle', seconds: 3 };
+  } catch (error) {
+    console.error('Gemini API error:', error);
+    return { type: 'idle', seconds: 3 };
+  }
+}
+
