@@ -489,7 +489,7 @@ export class World {
                         x: this._calculatePookieLocation(newPookies[otherPookieName], now).x,
                         y: this._calculatePookieLocation(newPookies[otherPookieName], now).y,
                         sinceTimestampMillis: now,
-                        minIdleDurationMillis: 3000,
+                        minIdleDurationMillis: 3_000,
                       };
                     }
                     this._changeState().pookies[pookieName].currentAction = {
@@ -497,7 +497,7 @@ export class World {
                       x: pookie.currentAction.x,
                       y: pookie.currentAction.y,
                       sinceTimestampMillis: now,
-                      minIdleDurationMillis: 3_000,
+                      minIdleDurationMillis: 5_000,
                     };
                     break;
                   case 'move-to-pookie':
