@@ -1,36 +1,100 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
 ## Getting Started
 
-First, run the development server:
+Port 3001.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Endpoints:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- POST /worlds/[world-id]/join: Tries to join the world. If it has reached the maximum number of pookies, returns a 400 saying that it has reached the maximum number of pookies. Otherwise, returns a 200 and the pookie's id.
+- GET /worlds/[world-id]/state: Returns the world state as a JSON.
+- WebSocket /worlds/[world-id]/state/listen: WebSocket connection that sends the most recent world state whenever it changes.
+- POST /worlds/[world-id]/pookies/[pookie-id]/guardian-angel/chat: Sends a message to the pookie from its guardian angel. Returns a 200 once sent.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+World state object:
 
-## Learn More
+```ts
+type WorldState = {
+  level: {
+    backgroundImage: {
+      url: string,
+      /** 1.0 means 1 pixel is 1 unit, 0.5 means 2 pixels are 1 unit, 10.0 means 1 pixel is 10 units, etc. Usually < 1.0 */
+      scale: number,
+    },
+    facilities: {
+      [facilityId: string]: {
+        x: number,
+        y: number,
+        displayName: string,
+        interactionPrompt: string,
+        interactionName: string,
+        variables: Record<string, string | number | boolean>,
+      }
+    },
+  },
+  startTimestampMillis: number,
+  pookies: {
+    [pookieId: string]: {
+      currentAction: PookieAction,
+      inventory: PookieInventoryItem[],
+      thoughts: PookieThought[],
+      health: number,
+      hunger: number,
+    }
+  },
+}
 
-To learn more about Next.js, take a look at the following resources:
+type PookieThought = (
+  | {
+    source: "self",
+    text: string,
+    spokenLoudly: boolean,
+    timestampMillis: number,
+  }
+  | {
+    source: "guardian-angel",
+    imageUrl: string,
+    timestampMillis: number,
+  }
+  | {
+    source: "facility",
+    facilityId: string,
+    timestampMillis: number,
+  }
+  | {
+    source: "self-action",
+    text: string,
+    timestampMillis: number,
+  }
+);
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+type PookieAction = (
+  | {
+    type: "idle",
+    sinceTimestampMillis: number,
+  }
+  | {
+    type: "move",
+    startX: number,
+    startY: number,
+    startTimestampMillis: number,
+    endX: number,
+    endY: number,
+    endTimestampMillis: number,
+  }
+  | {
+    type: "interact-with-facility",
+    facilityId: string,
+    interactionName: string,
+  }
+  | {
+    type: "dead",
+    timestampMillis: number,
+    sinceTimestampMillis: number,
+    untilTimestampMillis: number,
+  }
+);
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+type PookieInventoryItem = {
+  id: string,
+  amount: number,
+}
