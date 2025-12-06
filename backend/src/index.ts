@@ -138,7 +138,7 @@ app.ws('/worlds/:worldId/state/listen', (ws, req) => {
 // POST /worlds/:worldId/pookies/:pookieName/guardian-angel/chat
 app.post('/worlds/:worldId/pookies/:pookieName/guardian-angel/chat', (req, res) => {
   const { worldId, pookieName } = req.params;
-  const { imageUrl } = req.body;
+  const { text } = req.body;
   
   const world = worlds.get(worldId);
   
@@ -147,12 +147,12 @@ app.post('/worlds/:worldId/pookies/:pookieName/guardian-angel/chat', (req, res) 
     return;
   }
   
-  if (!imageUrl) {
-    res.status(400).json({ error: 'imageUrl is required' });
+  if (!text) {
+    res.status(400).json({ error: 'text is required' });
     return;
   }
   
-  const result = world.sendGuardianAngelMessage(pookieName, imageUrl);
+  const result = world.sendGuardianAngelMessage(pookieName, text);
   
   if (result === 'pookie-not-found') {
     res.status(404).json({ error: 'Pookie not found' });

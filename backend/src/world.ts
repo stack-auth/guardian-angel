@@ -60,7 +60,7 @@ type PookieThought = (
   }
   | {
     source: "guardian-angel",
-    imageUrl: string,
+    text: string,
     timestampMillis: number,
   }
   | {
@@ -210,14 +210,14 @@ export class World {
     return this._worldStateDoNotUseDirectly;
   }
 
-  public sendGuardianAngelMessage(pookieName: string, imageUrl: string): "pookie-not-found" | "success" {
+  public sendGuardianAngelMessage(pookieName: string, text: string): "pookie-not-found" | "success" {
     const pookie = this.getWorldState().pookies[pookieName];
     if (!pookie) {
       return "pookie-not-found";
     }
     this._changeState().pookies[pookieName].thoughts.push({
       source: 'guardian-angel',
-      imageUrl,
+      text,
       timestampMillis: Date.now(),
     });
     return "success";
@@ -284,7 +284,7 @@ export class World {
               case 'self':
                 return `You thought: "${thought.text}"`;
               case 'guardian-angel':
-                return `Your guardian angel said: ${thought.imageUrl}`;
+                return `Your guardian angel said: ${thought.text}`;
               case 'self-action-change':
                 return `Action update: ${thought.text}`;
               case 'facility':

@@ -30,7 +30,7 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
                 <select id="pookie-${worldId}" class="input">
                   ${pookieOptions}
                 </select>
-                <input type="text" id="imageUrl-${worldId}" class="input" placeholder="Image URL for guardian angel">
+                <input type="text" id="text-${worldId}" class="input" placeholder="Message for guardian angel">
                 <button class="btn btn-small" onclick="sendChat('${worldId}')">Send Chat</button>
               </div>
             ` : ''}
@@ -259,7 +259,7 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
           <div class="form-row">
             <input type="text" id="chatWorldId" class="input" placeholder="World ID" style="max-width: 200px;">
             <input type="text" id="chatPookieName" class="input" placeholder="Pookie Name" style="max-width: 200px;">
-            <input type="text" id="chatImageUrl" class="input" placeholder="Image URL">
+            <input type="text" id="chatText" class="input" placeholder="Message text">
             <button class="btn" onclick="sendChatManual()">Send</button>
           </div>
         </div>
@@ -365,13 +365,13 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
 
         async function sendChat(worldId) {
           const pookieName = document.getElementById('pookie-' + worldId).value;
-          const imageUrl = document.getElementById('imageUrl-' + worldId).value;
-          if (!imageUrl) return alert('Please enter an image URL');
+          const text = document.getElementById('text-' + worldId).value;
+          if (!text) return alert('Please enter a message');
           try {
             const res = await fetch('/worlds/' + worldId + '/pookies/' + pookieName + '/guardian-angel/chat', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ imageUrl })
+              body: JSON.stringify({ text })
             });
             const data = await res.json();
             showResult(data, !res.ok);
@@ -383,13 +383,13 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
         async function sendChatManual() {
           const worldId = document.getElementById('chatWorldId').value;
           const pookieName = document.getElementById('chatPookieName').value;
-          const imageUrl = document.getElementById('chatImageUrl').value;
-          if (!worldId || !pookieName || !imageUrl) return alert('Please fill all fields');
+          const text = document.getElementById('chatText').value;
+          if (!worldId || !pookieName || !text) return alert('Please fill all fields');
           try {
             const res = await fetch('/worlds/' + worldId + '/pookies/' + pookieName + '/guardian-angel/chat', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ imageUrl })
+              body: JSON.stringify({ text })
             });
             const data = await res.json();
             showResult(data, !res.ok);
