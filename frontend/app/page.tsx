@@ -1,401 +1,336 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useCallback, useRef } from 'react';
-import {
-  useWorldState,
-  getPookiePosition,
-  getPookieFacingDirection,
-  isPookieMoving,
-} from './useWorldState';
-import type { Pookie, PookieThought, WorldState } from './types';
-
-const DEFAULT_WORLD_ID = 'demo-world';
-
-// Default level configuration for creating a new world
-const DEFAULT_LEVEL = {
-  maxPlayers: 10,
-  width: 100,
-  height: 100,
-  speechDistance: 10,
-  walkSpeedPerSecond: 5,
-  backgroundImage: {
-    url: '/Map.png',
-    scale: 0.1, // 10 pixels = 1 unit
-  },
-  itemTypes: {},
-  facilities: {
-    'campfire': {
-      x: 50,
-      y: 50,
-      displayName: 'Campfire',
-      interactionPrompt: 'Warm yourself by the fire',
-      interactionName: 'warm',
-      variables: {},
-    },
-    'well': {
-      x: 30,
-      y: 70,
-      displayName: 'Well',
-      interactionPrompt: 'Draw water from the well',
-      interactionName: 'draw-water',
-      variables: {},
-    },
-  },
-};
-
-function ThoughtBubble({ message }: { message: string }) {
-  return (
-    <div className="thought-bubble">
-      {message}
-    </div>
-  );
-}
-
-// Color palette for pookies - each color has base, light, dark, and border variants
-const POOKIE_COLORS = [
-  { base: '#60a5fa', light: '#93c5fd', dark: '#2563eb', darker: '#1e40af', border: '#1e3a8a' }, // blue
-  { base: '#f87171', light: '#fca5a5', dark: '#dc2626', darker: '#b91c1c', border: '#7f1d1d' }, // red
-  { base: '#4ade80', light: '#86efac', dark: '#16a34a', darker: '#15803d', border: '#14532d' }, // green
-  { base: '#facc15', light: '#fde047', dark: '#ca8a04', darker: '#a16207', border: '#713f12' }, // yellow
-  { base: '#c084fc', light: '#d8b4fe', dark: '#9333ea', darker: '#7e22ce', border: '#581c87' }, // purple
-  { base: '#fb923c', light: '#fdba74', dark: '#ea580c', darker: '#c2410c', border: '#7c2d12' }, // orange
-  { base: '#2dd4bf', light: '#5eead4', dark: '#0d9488', darker: '#0f766e', border: '#134e4a' }, // teal
-  { base: '#f472b6', light: '#f9a8d4', dark: '#db2777', darker: '#be185d', border: '#831843' }, // pink
-  { base: '#a78bfa', light: '#c4b5fd', dark: '#7c3aed', darker: '#6d28d9', border: '#4c1d95' }, // violet
-  { base: '#38bdf8', light: '#7dd3fc', dark: '#0284c7', darker: '#0369a1', border: '#075985' }, // sky
-];
-
-// Generate a deterministic color index based on pookie name
-function getPookieColorIndex(name: string): number {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = ((hash << 5) - hash) + name.charCodeAt(i);
-    hash = hash & hash;
-  }
-  return Math.abs(hash) % POOKIE_COLORS.length;
-}
-
-interface PookieSpriteProps {
-  pookie: Pookie;
-  name: string;
-  scale: number;
-}
-
-function PookieSprite({ pookie, name, scale }: PookieSpriteProps) {
-  const [position, setPosition] = useState(() => getPookiePosition(pookie.currentAction));
-  const animationFrameRef = useRef<number | null>(null);
-
-  // Get deterministic color for this pookie
-  const color = POOKIE_COLORS[getPookieColorIndex(name)];
-
-  // Get the latest thought for display
-  const latestThought = pookie.thoughts.length > 0
-    ? pookie.thoughts[pookie.thoughts.length - 1]
-    : null;
-  const showThought = latestThought && Date.now() - latestThought.timestampMillis < 5000;
-
-  // Animate position for moving pookies
-  useEffect(() => {
-    let isActive = true;
-
-    const animate = () => {
-      if (!isActive) return;
-
-      const now = Date.now();
-      const newPosition = getPookiePosition(pookie.currentAction, now);
-      setPosition(newPosition);
-
-      // Keep animating if this is a move action and we haven't finished yet
-      const shouldKeepAnimating =
-        pookie.currentAction.type === 'move' &&
-        now < pookie.currentAction.endTimestampMillis;
-
-      if (shouldKeepAnimating) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    // Start animation immediately
-    animate();
-
-    return () => {
-      isActive = false;
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [pookie.currentAction]);
-
-  const isMoving = isPookieMoving(pookie.currentAction, Date.now());
-  const isThinking = pookie.currentAction.type === 'thinking';
-  const isDead = pookie.currentAction.type === 'dead';
-  const facingDirection = getPookieFacingDirection(pookie.currentAction);
-  const facingLeft = facingDirection === 'left';
-
-  // Convert world units to pixels
-  const pixelX = position.x / scale;
-  const pixelY = position.y / scale;
-
-  return (
-    <div
-      className="absolute pixel-art"
-      style={{
-        left: `${pixelX}px`,
-        top: `${pixelY}px`,
-        transform: 'translate(-50%, -50%)',
-        opacity: isDead ? 0.5 : 1,
-        zIndex: Math.floor(pixelY),
-      }}
-    >
-      {/* Pookie Name - outside the flipping container */}
-      <div
-        className="absolute left-1/2 text-xs font-bold text-white whitespace-nowrap"
-        style={{
-          transform: 'translateX(-50%)',
-          textShadow: '1px 1px 2px black, -1px -1px 2px black',
-          top: '-20px',
-        }}
-      >
-        {name}
-      </div>
-
-      {/* Health/Food bars - outside the flipping container */}
-      <div
-        className="absolute left-1/2 flex flex-col gap-0.5"
-        style={{
-          transform: 'translateX(-50%)',
-          top: '48px',
-        }}
-      >
-        <div className="w-6 h-1 bg-gray-700 rounded-sm overflow-hidden">
-          <div className="h-full bg-red-500" style={{ width: `${pookie.health}%` }} />
-        </div>
-        <div className="w-6 h-1 bg-gray-700 rounded-sm overflow-hidden">
-          <div className="h-full bg-yellow-500" style={{ width: `${pookie.food}%` }} />
-        </div>
-      </div>
-
-      {/* Character body - this flips when facing left */}
-      <div
-        className={`relative ${isMoving ? 'animate-moving' : ''} ${isThinking ? 'animate-talking' : ''}`}
-        style={{ transform: facingLeft ? 'scaleX(-1)' : 'scaleX(1)' }}
-      >
-        {/* Shadow */}
-        <div className="absolute left-1/2 top-full -translate-x-1/2 translate-y-0.5 w-3 h-0.5 bg-black/40 pixel-shadow" />
-
-        {/* Thought Bubble */}
-        {showThought && latestThought && (
-          <div
-            className="absolute bottom-full left-1/2 mb-6"
-            style={{ transform: `translateX(-50%) ${facingLeft ? 'scaleX(-1)' : 'scaleX(1)'}` }}
-          >
-            <ThoughtBubble message={getThoughtText(latestThought)} />
-          </div>
-        )}
-
-        {/* Thinking indicator */}
-        {isThinking && (
-          <div
-            className="absolute left-1/2 text-lg"
-            style={{
-              transform: `translateX(-50%) ${facingLeft ? 'scaleX(-1)' : 'scaleX(1)'}`,
-              top: '-28px',
-            }}
-          >
-            💭
-          </div>
-        )}
-
-        {/* Head */}
-        <div
-          className="w-4 h-4 relative z-10 pixel-head"
-          style={{
-            backgroundColor: color.base,
-            border: `1px solid ${color.border}`,
-            borderRadius: '1px',
-          }}
-        >
-          <div className="absolute top-0 left-0 w-2.5 h-1.5" style={{ backgroundColor: color.light, borderRadius: '0' }} />
-          <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: color.dark, borderRadius: '0' }} />
-          <div className="absolute left-0.5 top-1 w-1 h-1 bg-white" style={{ border: `0.5px solid ${color.border}`, borderRadius: '0' }} />
-          <div className="absolute right-0.5 top-1 w-1 h-1 bg-white" style={{ border: `0.5px solid ${color.border}`, borderRadius: '0' }} />
-        </div>
-
-        {/* Body */}
-        <div
-          className="absolute left-1/2 top-4 -translate-x-1/2 w-4 h-4 pixel-body"
-          style={{
-            backgroundColor: color.dark,
-            border: `1px solid ${color.border}`,
-            borderRadius: '1px 1px 0 0',
-          }}
-        >
-          <div className="absolute top-0 left-0 w-2.5 h-1.5" style={{ backgroundColor: color.base, borderRadius: '0' }} />
-          <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: color.darker, borderRadius: '0' }} />
-          <div className="absolute top-0 right-0 w-0.5 h-full" style={{ backgroundColor: color.darker, borderRadius: '0' }} />
-        </div>
-
-        {/* Legs */}
-        <div className="absolute left-1/2 top-8 -translate-x-1/2 flex gap-0.5 pixel-legs">
-          <div
-            className="w-1.5 h-2.5 pixel-leg-left"
-            style={{
-              backgroundColor: color.dark,
-              border: `1px solid ${color.border}`,
-              borderRadius: '0 0 1px 1px',
-            }}
-          >
-            <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: color.darker, borderRadius: '0' }} />
-          </div>
-          <div
-            className="w-1.5 h-2.5 pixel-leg-right"
-            style={{
-              backgroundColor: color.dark,
-              border: `1px solid ${color.border}`,
-              borderRadius: '0 0 1px 1px',
-            }}
-          >
-            <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: color.darker, borderRadius: '0' }} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function getThoughtText(thought: PookieThought): string {
-  switch (thought.source) {
-    case 'self':
-      return thought.text;
-    case 'guardian-angel':
-      return `🪽 ${thought.text}`;
-    case 'facility':
-      return `📍 ${thought.text}`;
-    case 'self-action-change':
-      return thought.text;
-    default:
-      return '';
-  }
-}
-
-interface GameUIProps {
-  worldState: WorldState | null;
-  worldId: string;
-  onJoinWorld: () => void;
-}
-
-function GameUI({ worldState, worldId, onJoinWorld }: GameUIProps) {
-  const pookieCount = worldState ? Object.keys(worldState.pookies).length : 0;
-  const maxPookies = worldState?.level.maxPlayers || 0;
-
-  return (
-    <div className="absolute top-4 left-4 bg-black/70 px-4 py-3 rounded-lg text-white">
-      <div className="text-sm font-bold mb-2">World: {worldId}</div>
-      <div className="text-xs mb-2">
-        Pookies: {pookieCount} / {maxPookies}
-      </div>
-      <button
-        onClick={onJoinWorld}
-        disabled={pookieCount >= maxPookies}
-        className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
-      >
-        Join World
-      </button>
-    </div>
-  );
-}
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { PixelButton } from "./components/PixelButton";
+import { PixelInput } from "./components/PixelInput";
+import { PixelDialog } from "./components/PixelDialog";
+import { generateGameCode, normalizeGameCode } from "./lib/gameCode";
+import { BACKEND_URL, DEFAULT_LEVEL } from "./lib/gameConfig";
+import { getSession, saveSession, clearSession, getDeviceId, GameSession } from "./lib/session";
 
 export default function Home() {
-  const [worldId] = useState<string>(DEFAULT_WORLD_ID);
-  const [isWorldCreated, setIsWorldCreated] = useState(false);
+  const router = useRouter();
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [gameCode, setGameCode] = useState("");
+  const [error, setError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [existingSession, setExistingSession] = useState<GameSession | null>(null);
+  const [isValidatingSession, setIsValidatingSession] = useState(true);
 
-  const { worldState } = useWorldState({
-    worldId,
-    autoReconnect: true,
-  });
+  // Check for existing session on mount and validate it
+  useEffect(() => {
+    const validateSession = async () => {
+      const session = getSession();
+      if (!session) {
+        setIsValidatingSession(false);
+        return;
+      }
 
-  // Create world on initial load
-  const createWorld = useCallback(async () => {
+      try {
+        // Check if the world still exists
+        const response = await fetch(`${BACKEND_URL}/worlds/${session.worldId}/state`);
+        if (response.ok) {
+          const worldState = await response.json();
+          // Check if our pookie still exists in the world
+          if (worldState.pookies && worldState.pookies[session.pookieName]) {
+            setExistingSession(session);
+          } else {
+            // Pookie no longer exists, clear the session
+            clearSession();
+          }
+        } else {
+          // World no longer exists, clear the session
+          clearSession();
+        }
+      } catch {
+        // Network error or backend down, still show the session option
+        // but let the game page handle validation
+        setExistingSession(session);
+      }
+      setIsValidatingSession(false);
+    };
+
+    validateSession();
+  }, []);
+
+  const createGame = useCallback(async () => {
     if (isCreating) return;
     setIsCreating(true);
+    setError("");
 
     try {
-      const response = await fetch(`http://localhost:3001/worlds/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const newGameCode = generateGameCode();
+
+      // Create the world on the backend
+      const response = await fetch(`${BACKEND_URL}/worlds/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          worldId,
+          worldId: newGameCode,
           level: DEFAULT_LEVEL,
         }),
       });
 
-      if (response.ok || response.status === 400) {
-        // 400 might mean world already exists, which is fine
-        setIsWorldCreated(true);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to create game");
       }
+
+      // Join the world as the first player
+      const joinResponse = await fetch(`${BACKEND_URL}/worlds/${newGameCode}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!joinResponse.ok) {
+        throw new Error("Failed to join created game");
+      }
+
+      const joinData = await joinResponse.json();
+
+      // Save session
+      saveSession({
+        worldId: newGameCode,
+        pookieName: joinData.pookieName,
+        deviceId: getDeviceId(),
+        joinedAt: Date.now(),
+      });
+
+      // Navigate to game
+      router.push(`/game/${newGameCode}`);
     } catch (err) {
-      console.error('Failed to create world:', err);
+      setError(err instanceof Error ? err.message : "Failed to create game");
     } finally {
       setIsCreating(false);
     }
-  }, [worldId, isCreating]);
+  }, [isCreating, router]);
 
-  // Join world as a new pookie
-  const joinWorld = useCallback(async () => {
+  const joinGame = useCallback(async () => {
+    if (isJoining) return;
+
+    const normalizedCode = normalizeGameCode(gameCode);
+
+    if (!normalizedCode) {
+      setError("Please enter a game code");
+      return;
+    }
+
+    setIsJoining(true);
+    setError("");
+
     try {
-      const response = await fetch(`http://localhost:3001/worlds/${worldId}/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      // Check if world exists
+      const stateResponse = await fetch(`${BACKEND_URL}/worlds/${normalizedCode}/state`);
+
+      if (!stateResponse.ok) {
+        throw new Error("Game not found. Check the code and try again.");
+      }
+
+      // Check if this device already has a session for this world
+      const existingSession = getSession();
+      if (existingSession?.worldId === normalizedCode) {
+        // Already in this game, just navigate
+        router.push(`/game/${normalizedCode}`);
+        return;
+      }
+
+      // Join the world
+      const joinResponse = await fetch(`${BACKEND_URL}/worlds/${normalizedCode}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`Joined as: ${data.pookieName}`);
-      } else {
-        const error = await response.json();
-        console.error('Failed to join:', error);
+      if (!joinResponse.ok) {
+        const data = await joinResponse.json();
+        throw new Error(data.error || "Failed to join game");
       }
+
+      const joinData = await joinResponse.json();
+
+      // Save session
+      saveSession({
+        worldId: normalizedCode,
+        pookieName: joinData.pookieName,
+        deviceId: getDeviceId(),
+        joinedAt: Date.now(),
+      });
+
+      // Navigate to game
+      router.push(`/game/${normalizedCode}`);
     } catch (err) {
-      console.error('Failed to join world:', err);
+      setError(err instanceof Error ? err.message : "Failed to join game");
+    } finally {
+      setIsJoining(false);
     }
-  }, [worldId]);
+  }, [gameCode, isJoining, router]);
 
-  // Auto-create world on mount
-  useEffect(() => {
-    if (!isWorldCreated) {
-      createWorld();
+  const continueGame = useCallback(() => {
+    if (existingSession) {
+      router.push(`/game/${existingSession.worldId}`);
     }
-  }, [createWorld, isWorldCreated]);
+  }, [existingSession, router]);
 
-  const scale = worldState?.level.backgroundImage.scale || DEFAULT_LEVEL.backgroundImage.scale;
+  const leaveCurrentGame = useCallback(() => {
+    clearSession();
+    setExistingSession(null);
+  }, []);
 
   return (
     <div
-      className="min-h-screen w-full relative overflow-hidden"
+      className="min-h-screen w-full flex flex-col items-center justify-center p-4"
       style={{
-        backgroundImage: `url(${worldState?.level.backgroundImage.url || '/Map.png'})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
+        backgroundImage: "url(/Map.png)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
       }}
     >
-      {/* Render all pookies */}
-      {worldState && Object.entries(worldState.pookies).map(([pookieName, pookie]) => (
-        <PookieSprite
-          key={pookieName}
-          name={pookieName}
-          pookie={pookie}
-          scale={scale}
-        />
-      ))}
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/60" />
 
-      {/* Game UI */}
-      <GameUI
-        worldState={worldState}
-        worldId={worldId}
-        onJoinWorld={joinWorld}
-      />
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center gap-8 max-w-md w-full">
+        {/* Logo/Title */}
+        <div className="text-center">
+          <h1 className="text-5xl font-bold text-white mb-2 pixel-text drop-shadow-lg">
+            POOKIEVERSE
+          </h1>
+          <p className="text-slate-300 text-sm">
+            Guide in need is a guide indeed
+          </p>
+        </div>
+
+        {/* Main Menu Card */}
+        <div className="w-full bg-slate-900/90 border-4 border-slate-600 p-6 space-y-4">
+          {/* Loading Session */}
+          {isValidatingSession && (
+            <div className="text-center py-2">
+              <p className="text-slate-400 text-sm">Checking for existing game...</p>
+            </div>
+          )}
+
+          {/* Existing Session Banner */}
+          {!isValidatingSession && existingSession && (
+            <div className="bg-emerald-900/50 border-2 border-emerald-600 p-4 mb-4">
+              <p className="text-emerald-300 text-sm mb-2">
+                <span className="font-bold">Active Game Found!</span>
+              </p>
+              <p className="text-slate-300 text-xs mb-3">
+                You&apos;re playing as <span className="text-emerald-400 font-bold">{existingSession.pookieName}</span> in{" "}
+                <span className="text-emerald-400 font-mono">{existingSession.worldId}</span>
+              </p>
+              <div className="flex gap-2">
+                <PixelButton size="sm" onClick={continueGame} className="flex-1">
+                  Continue
+                </PixelButton>
+                <PixelButton
+                  size="sm"
+                  variant="danger"
+                  onClick={leaveCurrentGame}
+                  className="flex-1"
+                >
+                  Leave Game
+                </PixelButton>
+              </div>
+            </div>
+          )}
+
+          {/* Create Game Button */}
+          <PixelButton
+            size="lg"
+            onClick={createGame}
+            disabled={isCreating || isValidatingSession}
+            className="w-full"
+          >
+            {isCreating ? "Creating..." : "🎮 Create New Game"}
+          </PixelButton>
+
+          {/* Divider */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1 h-px bg-slate-600" />
+            <span className="text-slate-500 text-xs uppercase">or</span>
+            <div className="flex-1 h-px bg-slate-600" />
+          </div>
+
+          {/* Join Game Button */}
+          <PixelButton
+            size="lg"
+            variant="secondary"
+            onClick={() => setShowJoinDialog(true)}
+            disabled={isValidatingSession}
+            className="w-full"
+          >
+            🔗 Join Game
+          </PixelButton>
+
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-900/50 border border-red-600 p-3 rounded">
+              <p className="text-red-300 text-xs">{error}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Instructions */}
+        <div className="text-center text-slate-400 text-xs space-y-1">
+          <p>🪽 You are the Guardian Angel</p>
+          <p>👾 Your Pookie will explore and make decisions</p>
+          <p>💬 Guide them with your wisdom</p>
+        </div>
+      </div>
+
+      {/* Join Game Dialog */}
+      <PixelDialog
+        isOpen={showJoinDialog}
+        onClose={() => {
+          setShowJoinDialog(false);
+          setGameCode("");
+          setError("");
+        }}
+        title="Join Game"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-400 text-xs">
+            Enter the game code shared by the game creator.
+          </p>
+
+          <PixelInput
+            label="Game Code"
+            placeholder="e.g., happy-tiger-42"
+            value={gameCode}
+            onChange={(e) => {
+              setGameCode(e.target.value);
+              setError("");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") joinGame();
+            }}
+            error={error}
+          />
+
+          <div className="flex gap-3">
+            <PixelButton
+              onClick={joinGame}
+              disabled={isJoining || !gameCode.trim()}
+              className="flex-1"
+            >
+              {isJoining ? "Joining..." : "Join"}
+            </PixelButton>
+            <PixelButton
+              variant="secondary"
+              onClick={() => {
+                setShowJoinDialog(false);
+                setGameCode("");
+                setError("");
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </PixelButton>
+          </div>
+        </div>
+      </PixelDialog>
     </div>
   );
 }

@@ -147,8 +147,7 @@ export function getPookiePosition(
     }
 
     case "dead":
-      // Dead pookies stay at last known position (not tracked in action)
-      return { x: 0, y: 0 };
+      return { x: action.x, y: action.y };
 
     default:
       return { x: 0, y: 0 };

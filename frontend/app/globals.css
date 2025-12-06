@@ -275,3 +275,195 @@ body {
 .thought-bubble {
   animation: fadeIn 0.2s ease-out;
 }
+
+/* ========================================
+   Pixel UI Components
+   ======================================== */
+
+/* Pixel Button */
+.pixel-button {
+  border-width: 3px;
+  border-style: solid;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2), 2px 2px 0 rgba(0, 0, 0, 0.3);
+  transition: all 0.1s ease;
+  font-family: "Courier New", monospace;
+  image-rendering: pixelated;
+}
+
+.pixel-button:hover:not(:disabled) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25), 3px 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+.pixel-button:active:not(:disabled) {
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.1), inset 0 2px 0 rgba(0, 0, 0, 0.2),
+    1px 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Pixel Input */
+.pixel-input {
+  font-family: "Courier New", monospace;
+  image-rendering: pixelated;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s ease;
+}
+
+.pixel-input:focus {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3),
+    0 0 0 2px rgba(16, 185, 129, 0.5);
+}
+
+/* Pixel Dialog */
+.pixel-dialog {
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(0, 0, 0, 0.2);
+  animation: dialogFadeIn 0.2s ease-out;
+}
+
+@keyframes dialogFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Pixel Text */
+.pixel-text {
+  font-family: "Courier New", monospace;
+  image-rendering: pixelated;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5), -1px -1px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* ========================================
+   Guardian Angel Glow Effect
+   ======================================== */
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* ========================================
+   Scrollbar Styling
+   ======================================== */
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #475569 #1e293b;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #1e293b;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* ========================================
+   Additional Animations
+   ======================================== */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* ========================================
+   Mobile Optimizations
+   ======================================== */
+
+@media (max-width: 640px) {
+  .thought-bubble {
+    max-width: 120px;
+    font-size: 9px;
+    padding: 4px 8px;
+  }
+
+  .pixel-button {
+    border-width: 2px;
+  }
+}
+
+/* Touch-friendly button sizes */
+@media (pointer: coarse) {
+  .pixel-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ========================================
+   Debug Mode Styles
+   ======================================== */
+
+.debug-circle {
+  pointer-events: none;
+  animation: debugPulse 2s ease-in-out infinite;
+}
+
+@keyframes debugPulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Prevent text selection during panning */
+.touch-none {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ========================================
+   Map Zoom Transitions
+   ======================================== */
+
+.zoom-transition {
+  transition: transform 0.2s ease-out;
+}

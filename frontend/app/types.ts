@@ -68,6 +68,12 @@ export type PookieThought =
       source: "self-action-change";
       text: string;
       timestampMillis: number;
+    }
+  | {
+      source: "someone-else-said";
+      sayerPookieName: string;
+      text: string;
+      timestampMillis: number;
     };
 
 export type PookieAction =
@@ -104,6 +110,8 @@ export type PookieAction =
     }
   | {
       type: "dead";
+      x: number;
+      y: number;
       timestampMillis: number;
       sinceTimestampMillis: number;
       untilTimestampMillis: number;
