@@ -24,8 +24,8 @@ type CustomLevel = {
   maxPlayers: number,
   width: number,
   height: number,
-  /** The distance in units at which pookies can hear each other's speech. */
   speechDistance: number,
+  facilityInteractionDistance: number,
   walkSpeedPerSecond: number,
   backgroundImage: {
     url: string,

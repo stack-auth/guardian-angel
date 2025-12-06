@@ -5,7 +5,7 @@ let model: GenerativeModel | null = null;
 
 export function initGemini(apiKey: string) {
   genAI = new GoogleGenerativeAI(apiKey);
-  model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
 }
 
 export function getGeminiModel(): GenerativeModel {

@@ -2,8 +2,21 @@ import type { WorldState } from '../world.js';
 
 export type WorldsViewData = Record<string, { state: WorldState }>;
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
 export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port: number): string {
   const worldIds = Object.keys(worlds);
+  
+  // Calculate total state size
+  const allStates = Object.values(worlds).map(w => w.state);
+  const totalStateJson = JSON.stringify(allStates);
+  const totalStateSize = new TextEncoder().encode(totalStateJson).length;
+  const totalStateSizeFormatted = formatBytes(totalStateSize);
   
   const worldsHtml = worldIds.length === 0 
     ? '<p class="empty">No games currently running. Create a world first using POST /worlds/create!</p>'
@@ -73,6 +86,11 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
         .subtitle {
           color: #8892b0;
           font-size: 1.1rem;
+        }
+        .state-size {
+          color: #64ffda;
+          font-size: 0.9rem;
+          margin-top: 0.5rem;
         }
         .world-card {
           background: rgba(255, 255, 255, 0.05);
@@ -215,6 +233,7 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
         <header>
           <h1>👼 Guardian Angel</h1>
           <p class="subtitle">Game Server Dashboard</p>
+          <p class="state-size">Total state size: <strong>${totalStateSizeFormatted}</strong></p>
         </header>
         
         <div class="section">
@@ -269,9 +288,12 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
         </div>
         
         <div id="wsMessages" class="result-box">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;gap:1rem;">
             <span>WebSocket Messages</span>
-            <span id="wsStatus" class="ws-status disconnected">Disconnected</span>
+            <div style="display:flex;gap:0.75rem;align-items:center;">
+              <span id="wsStateSize" class="state-size" style="margin:0;"></span>
+              <span id="wsStatus" class="ws-status disconnected">Disconnected</span>
+            </div>
           </div>
           <pre id="wsContent"></pre>
         </div>
@@ -329,14 +351,23 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
           window.open('/worlds/' + worldId + '/state', '_blank');
         }
 
+        function formatBytes(bytes) {
+          if (bytes === 0) return '0 B';
+          if (bytes < 1024) return bytes + ' B';
+          if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+          return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
         function connectWs(worldId) {
           if (ws) ws.close();
           const wsBox = document.getElementById('wsMessages');
           const wsContent = document.getElementById('wsContent');
           const wsStatus = document.getElementById('wsStatus');
+          const wsStateSize = document.getElementById('wsStateSize');
           
           wsBox.classList.add('show');
           wsContent.textContent = 'Connecting...\\n';
+          wsStateSize.textContent = '';
           
           ws = new WebSocket('ws://localhost:${port}/worlds/' + worldId + '/state/listen');
           
@@ -348,6 +379,8 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
           
           ws.onmessage = (e) => {
             const data = JSON.parse(e.data);
+            const stateSize = new TextEncoder().encode(e.data).length;
+            wsStateSize.textContent = formatBytes(stateSize);
             wsContent.textContent += new Date().toLocaleTimeString() + ':\\n' + JSON.stringify(data, null, 2) + '\\n\\n';
             wsContent.parentElement.scrollTop = wsContent.parentElement.scrollHeight;
           };
@@ -355,6 +388,7 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
           ws.onclose = () => {
             wsStatus.textContent = 'Disconnected';
             wsStatus.classList.add('disconnected');
+            wsStateSize.textContent = '';
             wsContent.textContent += 'Disconnected.\\n';
           };
           
