@@ -1,4 +1,5 @@
 // Game configuration and constants
+import type { CustomLevel } from "../types";
 
 export const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
@@ -6,11 +7,12 @@ export const BACKEND_URL =
 export const MAX_PLAYERS = 10;
 
 // Default level configuration
-export const DEFAULT_LEVEL = {
+export const DEFAULT_LEVEL: CustomLevel = {
   maxPookies: MAX_PLAYERS,
   width: 100,
   height: 100,
   speechDistance: 15,
+  facilityInteractionDistance: 5,
   walkSpeedPerSecond: 8,
   backgroundImage: {
     url: "/Map.png",
@@ -24,6 +26,7 @@ export const DEFAULT_LEVEL = {
       displayName: "Mine",
       interactionPrompt: "Enter the mine to gather resources",
       interactionName: "mine",
+      interactionDurationMillis: 3000,
       variables: {},
     },
     "general-shop": {
@@ -32,6 +35,7 @@ export const DEFAULT_LEVEL = {
       displayName: "General Shop",
       interactionPrompt: "Buy and sell items at the general shop",
       interactionName: "trade",
+      interactionDurationMillis: 2000,
       variables: {},
     },
     "community-furnace": {
@@ -40,6 +44,7 @@ export const DEFAULT_LEVEL = {
       displayName: "Community Furnace",
       interactionPrompt: "Smelt ores and craft items",
       interactionName: "smelt",
+      interactionDurationMillis: 5000,
       variables: {},
     },
     "market-stalls": {
@@ -48,6 +53,7 @@ export const DEFAULT_LEVEL = {
       displayName: "Market Stalls",
       interactionPrompt: "Trade with other villagers",
       interactionName: "market",
+      interactionDurationMillis: 2000,
       variables: {},
     },
     farm: {
@@ -56,6 +62,7 @@ export const DEFAULT_LEVEL = {
       displayName: "Farm",
       interactionPrompt: "Grow and harvest crops",
       interactionName: "farm",
+      interactionDurationMillis: 4000,
       variables: {},
     },
     forest: {
@@ -64,6 +71,7 @@ export const DEFAULT_LEVEL = {
       displayName: "Forest",
       interactionPrompt: "Gather wood and forage for items",
       interactionName: "forage",
+      interactionDurationMillis: 3000,
       variables: {},
     },
     river: {
@@ -72,6 +80,7 @@ export const DEFAULT_LEVEL = {
       displayName: "River",
       interactionPrompt: "Fish or collect water",
       interactionName: "fish",
+      interactionDurationMillis: 4000,
       variables: {},
     },
   },

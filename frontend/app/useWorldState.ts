@@ -53,41 +53,55 @@ export function useWorldState({
     setConnectionStatus("connecting");
     setError(null);
 
-    const ws = new WebSocket(`${WS_URL}/worlds/${worldId}/state/listen`);
-    wsRef.current = ws;
+    try {
+      const ws = new WebSocket(`${WS_URL}/worlds/${worldId}/state/listen`);
+      wsRef.current = ws;
 
-    ws.onopen = () => {
-      console.log(`[WebSocket] Connected to world: ${worldId}`);
-      setConnectionStatus("connected");
-      setError(null);
-    };
+      ws.onopen = () => {
+        console.log(`[WebSocket] Connected to world: ${worldId}`);
+        setConnectionStatus("connected");
+        setError(null);
+      };
 
-    ws.onmessage = (event) => {
-      try {
-        const state: WorldState = JSON.parse(event.data);
-        setWorldState(state);
-      } catch (err) {
-        console.error("[WebSocket] Failed to parse message:", err);
-      }
-    };
+      ws.onmessage = (event) => {
+        try {
+          const state: WorldState = JSON.parse(event.data);
+          setWorldState(state);
+        } catch (err) {
+          console.error("[WebSocket] Failed to parse message:", err);
+        }
+      };
 
-    ws.onerror = (event) => {
-      console.error("[WebSocket] Error:", event);
-      setError("WebSocket connection error");
+      ws.onerror = () => {
+        // Don't log the event object as it's often empty/unhelpful
+        console.warn("[WebSocket] Connection error - will attempt reconnect");
+        setConnectionStatus("error");
+      };
+
+      ws.onclose = (event) => {
+        console.log(
+          `[WebSocket] Closed. Code: ${event.code}, Reason: ${
+            event.reason || "No reason provided"
+          }`
+        );
+        setConnectionStatus("disconnected");
+
+        // Reconnect on any abnormal close (not just error state)
+        if (autoReconnect && event.code !== 1000) {
+          console.log(`[WebSocket] Reconnecting in ${reconnectDelay}ms...`);
+          reconnectTimeoutRef.current = setTimeout(connect, reconnectDelay);
+        }
+      };
+    } catch (err) {
+      console.error("[WebSocket] Failed to create connection:", err);
       setConnectionStatus("error");
-    };
+      setError("Failed to connect to server");
 
-    ws.onclose = (event) => {
-      console.log(
-        `[WebSocket] Closed. Code: ${event.code}, Reason: ${event.reason}`
-      );
-      setConnectionStatus("disconnected");
-
-      if (autoReconnect && event.code !== 1000) {
-        console.log(`[WebSocket] Reconnecting in ${reconnectDelay}ms...`);
+      // Attempt to reconnect after delay
+      if (autoReconnect) {
         reconnectTimeoutRef.current = setTimeout(connect, reconnectDelay);
       }
-    };
+    }
   }, [worldId, autoReconnect, reconnectDelay]);
 
   const reconnect = useCallback(() => {

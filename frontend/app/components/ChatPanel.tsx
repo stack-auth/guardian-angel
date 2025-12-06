@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { PixelButton } from "./PixelButton";
 import type { PookieThought } from "../types";
 import { BACKEND_URL } from "../lib/gameConfig";
@@ -22,14 +22,7 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (!isCollapsed && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [thoughts, isCollapsed]);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const sendMessage = async () => {
     if (!message.trim() || isSending) return;
@@ -106,6 +99,30 @@ export function ChatPanel({
           color: "text-pink-300",
           bg: "bg-pink-900/30",
         };
+      case "trade-offer-received":
+        return {
+          icon: "📦",
+          label: `Offer from ${thought.fromPookieName}`,
+          text: `Offers ${thought.itemsOffered.map(i => `${i.amount}x ${i.itemId}`).join(', ')} for ${thought.itemsRequested.map(i => `${i.amount}x ${i.itemId}`).join(', ')}`,
+          color: "text-cyan-300",
+          bg: "bg-cyan-900/30",
+        };
+      case "trade-completed":
+        return {
+          icon: "✅",
+          label: `Trade with ${thought.withPookieName}`,
+          text: `Gave ${thought.itemsGiven.map(i => `${i.amount}x ${i.itemId}`).join(', ')}, got ${thought.itemsReceived.map(i => `${i.amount}x ${i.itemId}`).join(', ')}`,
+          color: "text-green-300",
+          bg: "bg-green-900/30",
+        };
+      case "trade-rejected":
+        return {
+          icon: "❌",
+          label: "Trade Rejected",
+          text: `${thought.byPookieName} rejected your offer`,
+          color: "text-red-300",
+          bg: "bg-red-900/30",
+        };
       default:
         return {
           icon: "📝",
@@ -145,7 +162,11 @@ export function ChatPanel({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-2 sm:p-3 space-y-2 max-h-[40vh] sm:max-h-60 scrollbar-thin">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-2 sm:p-3 space-y-2 max-h-[40vh] sm:max-h-60 scrollbar-thin"
+        style={{ scrollBehavior: 'smooth' }}
+      >
         {thoughts.length === 0 ? (
           <p className="text-slate-500 text-xs text-center py-4">
             No messages yet. Send a suggestion to your pookie!
@@ -171,7 +192,6 @@ export function ChatPanel({
             );
           })
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}

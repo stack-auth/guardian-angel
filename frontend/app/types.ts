@@ -1,4 +1,4 @@
-// Types matching backend world state
+// Types matching backend world state exactly
 
 export type WorldState = {
   level: CustomLevel;
@@ -13,9 +13,11 @@ export type CustomLevel = {
   width: number;
   height: number;
   speechDistance: number;
+  facilityInteractionDistance: number;
   walkSpeedPerSecond: number;
   backgroundImage: {
     url: string;
+    /** 1.0 means 1 pixel is 1 unit, 0.5 means 2 pixels are 1 unit, 10.0 means 1 pixel is 10 units, etc. Usually < 1.0 */
     scale: number;
   };
   itemTypes: {
@@ -34,12 +36,14 @@ export type CustomLevel = {
       displayName: string;
       interactionPrompt: string;
       interactionName: string;
+      interactionDurationMillis: number;
       variables: Record<string, string | number | boolean>;
     };
   };
 };
 
 export type Pookie = {
+  personality: string;
   currentAction: PookieAction;
   inventory: PookieInventoryItem[];
   thoughts: PookieThought[];
@@ -73,6 +77,26 @@ export type PookieThought =
       source: "someone-else-said";
       sayerPookieName: string;
       text: string;
+      timestampMillis: number;
+    }
+  | {
+      source: "trade-offer-received";
+      offerId: string;
+      fromPookieName: string;
+      itemsOffered: { itemId: string; amount: number }[];
+      itemsRequested: { itemId: string; amount: number }[];
+      timestampMillis: number;
+    }
+  | {
+      source: "trade-completed";
+      withPookieName: string;
+      itemsGiven: { itemId: string; amount: number }[];
+      itemsReceived: { itemId: string; amount: number }[];
+      timestampMillis: number;
+    }
+  | {
+      source: "trade-rejected";
+      byPookieName: string;
       timestampMillis: number;
     };
 

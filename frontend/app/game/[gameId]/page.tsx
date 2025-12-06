@@ -8,7 +8,7 @@ import {
   getPookieFacingDirection,
   isPookieMoving,
 } from "../../useWorldState";
-import type { Pookie, PookieThought } from "../../types";
+import type { Pookie, PookieThought, WorldState } from "../../types";
 import { PixelButton } from "../../components/PixelButton";
 import { QRCodeDialog } from "../../components/QRCodeDialog";
 import { ChatPanel } from "../../components/ChatPanel";
@@ -65,6 +65,12 @@ function getThoughtText(thought: PookieThought): string {
       return thought.text;
     case "someone-else-said":
       return `${thought.sayerPookieName}: ${thought.text}`;
+    case "trade-offer-received":
+      return `📦 ${thought.fromPookieName} offers: ${thought.itemsOffered.map(i => `${i.amount}x ${i.itemId}`).join(', ')} for ${thought.itemsRequested.map(i => `${i.amount}x ${i.itemId}`).join(', ')}`;
+    case "trade-completed":
+      return `✅ Trade with ${thought.withPookieName}: gave ${thought.itemsGiven.map(i => `${i.amount}x ${i.itemId}`).join(', ')}, got ${thought.itemsReceived.map(i => `${i.amount}x ${i.itemId}`).join(', ')}`;
+    case "trade-rejected":
+      return `❌ ${thought.byPookieName} rejected your trade`;
     default:
       return "";
   }
@@ -123,6 +129,7 @@ function PookieSprite({ pookie, name, scale, isOwn, debugMode, speechDistance, o
   const isMoving = isPookieMoving(pookie.currentAction, Date.now());
   const isThinking = pookie.currentAction.type === "thinking";
   const isDead = pookie.currentAction.type === "dead";
+  const isInteracting = pookie.currentAction.type === "interact-with-facility";
   const facingDirection = getPookieFacingDirection(pookie.currentAction);
   const facingLeft = facingDirection === "left";
 
@@ -246,6 +253,19 @@ function PookieSprite({ pookie, name, scale, isOwn, debugMode, speechDistance, o
           </div>
         )}
 
+        {/* Interacting with facility indicator */}
+        {isInteracting && (
+          <div
+            className="absolute left-1/2 text-lg animate-bounce"
+            style={{
+              transform: `translateX(-50%) ${facingLeft ? "scaleX(-1)" : "scaleX(1)"}`,
+              top: "-28px",
+            }}
+          >
+            ⚡
+          </div>
+        )}
+
         {/* Head */}
         <div
           className="w-4 h-4 relative z-10 pixel-head"
@@ -310,28 +330,39 @@ function DebugPanel({
   connectionStatus
 }: {
   isOpen: boolean;
-  worldState: any;
+  worldState: WorldState | null;
   connectionStatus: string;
 }) {
   if (!isOpen) return null;
 
   const pookieCount = worldState ? Object.keys(worldState.pookies).length : 0;
+  const facilityCount = worldState ? Object.keys(worldState.level.facilities).length : 0;
 
   return (
-    <div className="absolute top-12 right-2 z-40 bg-slate-900/95 border border-slate-600 p-2 text-xs font-mono max-w-64 max-h-64 overflow-auto scrollbar-thin">
+    <div className="absolute top-12 right-2 z-40 bg-slate-900/95 border border-slate-600 p-2 text-xs font-mono max-w-64 max-h-80 overflow-auto scrollbar-thin">
       <div className="text-emerald-400 font-bold mb-1">Debug Info</div>
       <div className="space-y-1 text-slate-300">
         <div>Connection: <span className={connectionStatus === "connected" ? "text-green-400" : "text-yellow-400"}>{connectionStatus}</span></div>
         <div>Pookies: {pookieCount}</div>
+        <div>Facilities: {facilityCount}</div>
         {worldState && (
           <>
             <div>Speech Distance: {worldState.level.speechDistance} units</div>
+            <div>Facility Distance: {worldState.level.facilityInteractionDistance} units</div>
             <div>Map Size: {worldState.level.width}x{worldState.level.height}</div>
             <div className="border-t border-slate-600 mt-1 pt-1">
               <div className="text-amber-400">Pookie States:</div>
-              {Object.entries(worldState.pookies).map(([name, p]: [string, any]) => (
+              {Object.entries(worldState.pookies).map(([name, p]) => (
                 <div key={name} className="text-slate-400 truncate">
                   {name}: {p.currentAction.type}
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-slate-600 mt-1 pt-1">
+              <div className="text-cyan-400">Facilities:</div>
+              {Object.entries(worldState.level.facilities).map(([id, f]) => (
+                <div key={id} className="text-slate-400 truncate">
+                  {f.displayName} ({f.x}, {f.y})
                 </div>
               ))}
             </div>
@@ -351,7 +382,7 @@ export default function GamePage() {
   const [isJoining, setIsJoining] = useState(false);
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
-  const [isChatCollapsed, setIsChatCollapsed] = useState(true);
+  const [isChatCollapsed, setIsChatCollapsed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debugMode, setDebugMode] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -500,10 +531,11 @@ export default function GamePage() {
           </div>
 
           {/* Session Info */}
-          {session && myPookie ? (
+          {session ? (
             <div className="space-y-1.5">
               <div className="text-emerald-300 text-xs truncate">
                 🪽 {session.pookieName}
+                {!myPookie && <span className="text-slate-500 ml-1">(loading...)</span>}
               </div>
               <div className="flex flex-wrap gap-1">
                 <button
@@ -562,12 +594,12 @@ export default function GamePage() {
         connectionStatus={connectionStatus}
       />
 
-      {/* Chat Panel (only if in session) */}
-      {session && myPookie && (
+      {/* Chat Panel (show if session exists, even if pookie not yet in world state) */}
+      {session && (
         <ChatPanel
           worldId={gameId}
           pookieName={session.pookieName}
-          thoughts={myPookie.thoughts}
+          thoughts={myPookie?.thoughts || []}
           isCollapsed={isChatCollapsed}
           onToggle={() => setIsChatCollapsed(!isChatCollapsed)}
         />
