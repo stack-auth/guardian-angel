@@ -5,14 +5,17 @@ import { useRouter } from "next/navigation";
 import { PixelButton } from "./components/PixelButton";
 import { PixelInput } from "./components/PixelInput";
 import { PixelDialog } from "./components/PixelDialog";
+import { LevelEditor } from "./components/LevelEditor";
 import { generateGameCode, normalizeGameCode } from "./lib/gameCode";
 import { BACKEND_URL, DEFAULT_LEVEL } from "./lib/gameConfig";
 import { getSession, saveSession, clearSession, getDeviceId, GameSession } from "./lib/session";
+import type { CustomLevel } from "./types";
 
 export default function Home() {
   const router = useRouter();
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [showCustomLevelDialog, setShowCustomLevelDialog] = useState(false);
+  const [showLevelEditor, setShowLevelEditor] = useState(false);
   const [customBackgroundUrl, setCustomBackgroundUrl] = useState("");
   const [gameCode, setGameCode] = useState("");
   const [error, setError] = useState("");
@@ -57,7 +60,7 @@ export default function Home() {
     validateSession();
   }, []);
 
-  const createGame = useCallback(async (customBackgroundImageUrl?: string) => {
+  const createGame = useCallback(async (customLevelConfig?: CustomLevel) => {
     if (isCreating) return;
     setIsCreating(true);
     setError("");
@@ -65,16 +68,8 @@ export default function Home() {
     try {
       const newGameCode = generateGameCode();
 
-      // Create level config, optionally with custom background
-      const levelConfig = customBackgroundImageUrl
-        ? {
-          ...DEFAULT_LEVEL,
-          backgroundImage: {
-            ...DEFAULT_LEVEL.backgroundImage,
-            url: customBackgroundImageUrl,
-          },
-        }
-        : DEFAULT_LEVEL;
+      // Use custom level config or default
+      const levelConfig = customLevelConfig || DEFAULT_LEVEL;
 
       // Create the world on the backend
       const response = await fetch(`${BACKEND_URL}/worlds/create`, {
@@ -110,6 +105,10 @@ export default function Home() {
         deviceId: getDeviceId(),
         joinedAt: Date.now(),
       });
+
+      // Close level editor if open
+      setShowLevelEditor(false);
+      setCustomBackgroundUrl("");
 
       // Navigate to game
       router.push(`/game/${newGameCode}`);
@@ -382,8 +381,7 @@ export default function Home() {
             onKeyDown={(e) => {
               if (e.key === "Enter" && customBackgroundUrl.trim()) {
                 setShowCustomLevelDialog(false);
-                createGame(customBackgroundUrl.trim());
-                setCustomBackgroundUrl("");
+                setShowLevelEditor(true);
               }
             }}
             error={error}
@@ -414,13 +412,12 @@ export default function Home() {
             <PixelButton
               onClick={() => {
                 setShowCustomLevelDialog(false);
-                createGame(customBackgroundUrl.trim());
-                setCustomBackgroundUrl("");
+                setShowLevelEditor(true);
               }}
-              disabled={isCreating || !customBackgroundUrl.trim()}
+              disabled={!customBackgroundUrl.trim()}
               className="flex-1"
             >
-              {isCreating ? "Creating..." : "Create Game"}
+              Next: Place Facilities →
             </PixelButton>
             <PixelButton
               variant="secondary"
@@ -436,6 +433,19 @@ export default function Home() {
           </div>
         </div>
       </PixelDialog>
+
+      {/* Level Editor */}
+      {showLevelEditor && (
+        <LevelEditor
+          backgroundImageUrl={customBackgroundUrl}
+          onCreateGame={createGame}
+          onBack={() => {
+            setShowLevelEditor(false);
+            setShowCustomLevelDialog(true);
+          }}
+          isCreating={isCreating}
+        />
+      )}
     </div>
   );
 }
