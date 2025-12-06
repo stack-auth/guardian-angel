@@ -1,6 +1,6 @@
 // Note: All x, y, width, height values are in units and can be fractional (use backgroundImage.scale to convert to display pixels).
 
-import { distance, randomElement, runAsynchronously } from "./util.js";
+import { distance, randomElement, randomPointWithinRadius, runAsynchronously } from "./util.js";
 import { askPookie, type PookieResponse } from "./gemini.js";
 
 type WorldState = {
@@ -484,7 +484,7 @@ export class World {
             
             You have the following inventory: ${pookie.inventory.map(item => `${item.amount}x ${item.id}`).join(', ')}.
 
-            You have a guardian angel. It can see what happens around you and tries to be helpful. No one else can see or hear your guardian angel. Usually you should listen to your guardian angel, but if you feel like your guardian angel has been giving you bad advice, you can start ignoring it.
+            You have a guardian angel. It can see what happens around you and tries to be helpful. No one else can see or hear your guardian angel. Usually you should listen to your guardian angel, but if you feel like your guardian angel has been giving you bad advice, you can start ignoring it. It will be clear when your guardian angel is talking to you; don't hallucinate it.
 
             Here are all the pookies in the Pookieverse:
             ${Object.keys(this.getWorldState().pookies).map(pookieName => `- ${describeOtherPookie(pookieName)}`).join("\n")}
@@ -495,7 +495,7 @@ export class World {
             ${pendingOffersText}
 
             You MUST respond with ONLY a valid JSON object (no markdown, no explanation) in one of these formats:
-            - {"type": "idle", "seconds": <number between 5-20>, "thought": "<short reasoning, max 1 sentence>"} - In this case, you will stay idle for a few seconds, and then think again. If a pookie or guardian angel talks to you during this time, you will be interrupted. This is great when you're waiting for something, like a response from another pookie.
+            - {"type": "idle", "seconds": <number between 5-20>, "thought": "<short reasoning, max 1 sentence>"} - In this case, you will stay idle for a few seconds, and then think again. If a pookie or guardian angel talks to you during this time, you will be interrupted. This is great when you're waiting for something, like a response from another pookie. You almost never want to just randomly idle. Instead, it's better to walk around or talk to other pookies.
             - {"type": "say", "message": "<short message, max 1 sentence>", "thought": "<short reasoning, max 1 sentence>"} - In this case, pookies near you will hear you and be able to interact with you. What you say should be relatively short, 1 sentence maximum
             - {"type": "move-to-facility", "facilityId": "<facility id>", "thought": "<short reasoning, max 1 sentence>"} - to move to a facility
             - {"type": "move-to-pookie", "pookieName": "<pookie name>", "thought": "<short reasoning, max 1 sentence>"} - You can move either to a different pookie or to a facility.
@@ -556,9 +556,11 @@ export class World {
                       minIdleDurationMillis: chosenResponse.seconds * 1000,
                     };
                     break;
-                  case 'move-to-facility':
+                  case 'move-to-facility': {
                     const facility = this.getWorldState().level.facilities[chosenResponse.facilityId];
-                    const dist = distance(pookie.currentAction.x, pookie.currentAction.y, facility.x, facility.y);
+                    const facilityInteractionDist = this.getWorldState().level.facilityInteractionDistance;
+                    const targetFacilityPoint = randomPointWithinRadius(facility.x, facility.y, facilityInteractionDist);
+                    const distToFacility = distance(pookie.currentAction.x, pookie.currentAction.y, targetFacilityPoint.x, targetFacilityPoint.y);
                     this._changeState().pookies[pookieName].thoughts.push({
                       source: 'self-action-change',
                       text: `Moving towards facility ${facility.displayName}`,
@@ -569,11 +571,12 @@ export class World {
                       startX: pookie.currentAction.x,
                       startY: pookie.currentAction.y,
                       startTimestampMillis: now + 1_000,  // Wait 1 second before starting to move so that laggy clients feel less laggy
-                      endX: this.getWorldState().level.facilities[chosenResponse.facilityId].x,
-                      endY: this.getWorldState().level.facilities[chosenResponse.facilityId].y,
-                      endTimestampMillis: now + 1_000 + dist / this.getWorldState().level.walkSpeedPerSecond * 1000,
+                      endX: targetFacilityPoint.x,
+                      endY: targetFacilityPoint.y,
+                      endTimestampMillis: now + 1_000 + distToFacility / this.getWorldState().level.walkSpeedPerSecond * 1000,
                     };
                     break;
+                  }
                   case 'say':
                     this._changeState().pookies[pookieName].thoughts.push({
                       source: 'self',
@@ -609,7 +612,7 @@ export class World {
                       minIdleDurationMillis: 5_000,
                     };
                     break;
-                  case 'move-to-pookie':
+                  case 'move-to-pookie': {
                     this._changeState().pookies[pookieName].thoughts.push({
                       source: 'self-action-change',
                       text: `Moving towards pookie ${chosenResponse.pookieName}`,
@@ -618,14 +621,16 @@ export class World {
                     const targetPookie = this.getWorldState().pookies[chosenResponse.pookieName];
                     if (targetPookie) {
                       const targetLocation = this._calculatePookieLocation(targetPookie, now);
-                      const distToPookie = distance(pookie.currentAction.x, pookie.currentAction.y, targetLocation.x, targetLocation.y);
+                      const speechDist = this.getWorldState().level.speechDistance;
+                      const targetPookiePoint = randomPointWithinRadius(targetLocation.x, targetLocation.y, speechDist);
+                      const distToPookie = distance(pookie.currentAction.x, pookie.currentAction.y, targetPookiePoint.x, targetPookiePoint.y);
                       this._changeState().pookies[pookieName].currentAction = {
                         type: 'move',
                         startX: pookie.currentAction.x,
                         startY: pookie.currentAction.y,
                         startTimestampMillis: now + 1_000,
-                        endX: targetLocation.x,
-                        endY: targetLocation.y,
+                        endX: targetPookiePoint.x,
+                        endY: targetPookiePoint.y,
                         endTimestampMillis: now + 1_000 + distToPookie / this.getWorldState().level.walkSpeedPerSecond * 1000,
                       };
                     } else {
@@ -639,6 +644,7 @@ export class World {
                       };
                     }
                     break;
+                  }
                   
                   case 'offer-trade': {
                     const targetPookieName = chosenResponse.targetPookieName;
