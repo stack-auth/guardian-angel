@@ -495,7 +495,7 @@ export default function GamePage() {
             />
             <span className="text-white font-bold font-mono truncate">{gameId}</span>
             <span className="text-slate-500 text-xs">
-              {worldState ? Object.keys(worldState.pookies).length : 0}/{worldState?.level.maxPlayers || 10}
+              {worldState ? Object.keys(worldState.pookies).length : 0}/{worldState?.level.maxPookies || 10}
             </span>
           </div>
 

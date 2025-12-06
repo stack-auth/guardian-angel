@@ -9,7 +9,7 @@ export type WorldState = {
 };
 
 export type CustomLevel = {
-  maxPlayers: number;
+  maxPookies: number;
   width: number;
   height: number;
   speechDistance: number;

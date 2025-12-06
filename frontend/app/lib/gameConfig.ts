@@ -7,7 +7,7 @@ export const MAX_PLAYERS = 10;
 
 // Default level configuration
 export const DEFAULT_LEVEL = {
-  maxPlayers: MAX_PLAYERS,
+  maxPookies: MAX_PLAYERS,
   width: 100,
   height: 100,
   speechDistance: 15,
