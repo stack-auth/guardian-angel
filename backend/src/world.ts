@@ -48,6 +48,7 @@ type CustomLevel = {
       displayName: string,
       interactionPrompt: string,
       interactionName: string,
+      interactionDurationMillis: number,
       variables: Record<string, string | number | boolean>,
     }
   },
