@@ -2,6 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { PixelButton } from "./PixelButton";
+import { PixelInput } from "./PixelInput";
+import { PixelDialog } from "./PixelDialog";
 import type { CustomLevel } from "../types";
 import { DEFAULT_LEVEL } from "../lib/gameConfig";
 
@@ -15,7 +17,7 @@ const FACILITY_TEMPLATES = [
     id: "mine",
     displayName: "Mine",
     emoji: "⛏️",
-    interactionPrompt: "Enter the mine to gather resources",
+    defaultPrompt: "Enter the mine to gather resources",
     interactionName: "mine",
     interactionDurationMillis: 3000,
   },
@@ -23,7 +25,7 @@ const FACILITY_TEMPLATES = [
     id: "general-shop",
     displayName: "General Shop",
     emoji: "🏪",
-    interactionPrompt: "Buy and sell items at the general shop",
+    defaultPrompt: "Buy and sell items at the general shop",
     interactionName: "trade",
     interactionDurationMillis: 2000,
   },
@@ -31,7 +33,7 @@ const FACILITY_TEMPLATES = [
     id: "community-furnace",
     displayName: "Furnace",
     emoji: "🔥",
-    interactionPrompt: "Smelt ores and craft items",
+    defaultPrompt: "Smelt ores and craft items",
     interactionName: "smelt",
     interactionDurationMillis: 5000,
   },
@@ -39,7 +41,7 @@ const FACILITY_TEMPLATES = [
     id: "market-stalls",
     displayName: "Market",
     emoji: "🛒",
-    interactionPrompt: "Trade with other villagers",
+    defaultPrompt: "Trade with other villagers",
     interactionName: "market",
     interactionDurationMillis: 2000,
   },
@@ -47,7 +49,7 @@ const FACILITY_TEMPLATES = [
     id: "farm",
     displayName: "Farm",
     emoji: "🌾",
-    interactionPrompt: "Grow and harvest crops",
+    defaultPrompt: "Grow and harvest crops",
     interactionName: "farm",
     interactionDurationMillis: 4000,
   },
@@ -55,7 +57,7 @@ const FACILITY_TEMPLATES = [
     id: "forest",
     displayName: "Forest",
     emoji: "🌲",
-    interactionPrompt: "Gather wood and forage for items",
+    defaultPrompt: "Gather wood and forage for items",
     interactionName: "forage",
     interactionDurationMillis: 3000,
   },
@@ -63,7 +65,7 @@ const FACILITY_TEMPLATES = [
     id: "river",
     displayName: "River",
     emoji: "🎣",
-    interactionPrompt: "Fish or collect water",
+    defaultPrompt: "Fish or collect water",
     interactionName: "fish",
     interactionDurationMillis: 4000,
   },
@@ -79,6 +81,18 @@ type PlacedFacility = {
   interactionPrompt: string;
   interactionName: string;
   interactionDurationMillis: number;
+};
+
+// Pending facility waiting for customization
+type PendingFacility = {
+  templateId: string;
+  x: number;
+  y: number;
+  emoji: string;
+  interactionName: string;
+  interactionDurationMillis: number;
+  defaultName: string;
+  defaultPrompt: string;
 };
 
 interface LevelEditorProps {
@@ -99,6 +113,11 @@ export function LevelEditor({
   const [draggingFacility, setDraggingFacility] = useState<string | null>(null);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  // Customization dialog state
+  const [pendingFacility, setPendingFacility] = useState<PendingFacility | null>(null);
+  const [customName, setCustomName] = useState("");
+  const [customPrompt, setCustomPrompt] = useState("");
 
   // Calculate display dimensions - scale up small images to fill editor
   const displayDimensions = imageDimensions
@@ -162,23 +181,52 @@ export function LevelEditor({
       const template = FACILITY_TEMPLATES.find((t) => t.id === selectedTemplate);
       if (!template) return;
 
-      const newFacility: PlacedFacility = {
-        id: template.id,
+      // Set up pending facility and show customization dialog
+      setPendingFacility({
         templateId: template.id,
         x: Math.round(worldX),
         y: Math.round(worldY),
-        displayName: template.displayName,
         emoji: template.emoji,
-        interactionPrompt: template.interactionPrompt,
         interactionName: template.interactionName,
         interactionDurationMillis: template.interactionDurationMillis,
-      };
-
-      setPlacedFacilities((prev) => [...prev, newFacility]);
+        defaultName: template.displayName,
+        defaultPrompt: template.defaultPrompt,
+      });
+      setCustomName(template.displayName);
+      setCustomPrompt(template.defaultPrompt);
       setSelectedTemplate(null);
     },
     [selectedTemplate, scale, displayScaleFactor, isTemplatePlaced]
   );
+
+  // Confirm and save the customized facility
+  const confirmFacility = useCallback(() => {
+    if (!pendingFacility) return;
+
+    const newFacility: PlacedFacility = {
+      id: pendingFacility.templateId,
+      templateId: pendingFacility.templateId,
+      x: pendingFacility.x,
+      y: pendingFacility.y,
+      displayName: customName.trim() || pendingFacility.defaultName,
+      emoji: pendingFacility.emoji,
+      interactionPrompt: customPrompt.trim() || pendingFacility.defaultPrompt,
+      interactionName: pendingFacility.interactionName,
+      interactionDurationMillis: pendingFacility.interactionDurationMillis,
+    };
+
+    setPlacedFacilities((prev) => [...prev, newFacility]);
+    setPendingFacility(null);
+    setCustomName("");
+    setCustomPrompt("");
+  }, [pendingFacility, customName, customPrompt]);
+
+  // Cancel facility placement
+  const cancelFacility = useCallback(() => {
+    setPendingFacility(null);
+    setCustomName("");
+    setCustomPrompt("");
+  }, []);
 
   const handleFacilityDrag = useCallback(
     (e: React.MouseEvent<HTMLDivElement>, facilityId: string) => {
@@ -284,10 +332,10 @@ export function LevelEditor({
                 }}
                 disabled={alreadyPlaced}
                 className={`w-full p-3 rounded border-2 text-left transition-all ${alreadyPlaced
-                    ? "bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed"
-                    : selectedTemplate === template.id
-                      ? "bg-emerald-900/50 border-emerald-500 text-emerald-300"
-                      : "bg-slate-700/50 border-slate-600 text-white hover:border-slate-500"
+                  ? "bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed"
+                  : selectedTemplate === template.id
+                    ? "bg-emerald-900/50 border-emerald-500 text-emerald-300"
+                    : "bg-slate-700/50 border-slate-600 text-white hover:border-slate-500"
                   }`}
               >
                 <span className="text-lg mr-2">{template.emoji}</span>
@@ -423,6 +471,60 @@ export function LevelEditor({
           )}
         </div>
       </div>
+
+      {/* Facility Customization Dialog */}
+      <PixelDialog
+        isOpen={pendingFacility !== null}
+        onClose={cancelFacility}
+        title={`Customize ${pendingFacility?.emoji || ""} Facility`}
+      >
+        <div className="space-y-4">
+          <p className="text-slate-400 text-xs">
+            Customize this facility&apos;s name and interaction prompt. The prompt tells Pookies what they can do here.
+          </p>
+
+          <PixelInput
+            label="Facility Name"
+            placeholder={pendingFacility?.defaultName || "Enter name..."}
+            value={customName}
+            onChange={(e) => setCustomName(e.target.value)}
+            autoFocus
+          />
+
+          <div className="w-full">
+            <label className="block text-white text-sm font-bold mb-2 uppercase tracking-wider">
+              Interaction Prompt
+            </label>
+            <textarea
+              className="w-full px-4 py-3 bg-slate-800 border-2 border-slate-600 text-white placeholder-slate-400 focus:border-emerald-500 focus:outline-none resize-none"
+              rows={3}
+              placeholder={pendingFacility?.defaultPrompt || "Enter prompt..."}
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+            />
+            <p className="mt-1 text-slate-500 text-xs">
+              This tells Pookies what they can do at this location
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <PixelButton
+              onClick={confirmFacility}
+              disabled={!customName.trim()}
+              className="flex-1"
+            >
+              {pendingFacility?.emoji} Place Facility
+            </PixelButton>
+            <PixelButton
+              variant="secondary"
+              onClick={cancelFacility}
+              className="flex-1"
+            >
+              Cancel
+            </PixelButton>
+          </div>
+        </div>
+      </PixelDialog>
     </div>
   );
 }
