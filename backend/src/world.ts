@@ -73,6 +73,12 @@ type PookieThought = (
     text: string,
     timestampMillis: number,
   }
+  | {
+    source: "someone-else-said",
+    sayerPookieName: string,
+    text: string,
+    timestampMillis: number,
+  }
 );
 
 type PookieAction = (
@@ -114,6 +120,8 @@ type PookieAction = (
   }
   | {
     type: "dead",
+    x: number,
+    y: number,
     timestampMillis: number,
     sinceTimestampMillis: number,
     untilTimestampMillis: number,
@@ -248,6 +256,20 @@ export class World {
     return { pookieName };
   }
 
+  private _calculatePookieLocation(pookie: Pookie, now: number): { x: number, y: number } {
+    switch (pookie.currentAction.type) {
+      case 'move':
+        const t = (now - pookie.currentAction.startTimestampMillis) / (pookie.currentAction.endTimestampMillis - pookie.currentAction.startTimestampMillis);
+        return { x: pookie.currentAction.startX + (pookie.currentAction.endX - pookie.currentAction.startX) * t, y: pookie.currentAction.startY + (pookie.currentAction.endY - pookie.currentAction.startY) * t };
+      case 'thinking':
+      case 'idle':
+      case 'dead':
+        return { x: pookie.currentAction.x, y: pookie.currentAction.y };
+      default:
+        throw new Error(`Unknown pookie action type: ${pookie.currentAction.type}`);
+    }
+  }
+
   private _tick(): void {
     const now = Date.now();
 
@@ -282,19 +304,38 @@ export class World {
           const thoughtToText = (thought: PookieThought) => {
             switch (thought.source) {
               case 'self':
-                return `You thought: "${thought.text}"`;
+                return `You ${thought.spokenLoudly ? "said" : "thought"}: "${thought.text}"`;
               case 'guardian-angel':
                 return `Your guardian angel said: ${thought.text}`;
               case 'self-action-change':
                 return `Action update: ${thought.text}`;
               case 'facility':
                 return `Facility update: ${thought.text}`;
+              case 'someone-else-said':
+                return `${thought.sayerPookieName} said: "${thought.text}"`;
               default: {
                 throw new Error(`Unknown thought source: ${thought}`);
               }
             }
           }
-          const closeByPookieNames = new Set<string>();
+          const pookiesWithinSpeechDistance = new Set<string>();
+          for (const [otherPookieName, otherPookie] of Object.entries(this.getWorldState().pookies)) {
+            if (otherPookieName === pookieName) continue;
+            const location = this._calculatePookieLocation(pookie, now);
+            const otherPookie = this.getWorldState().pookies[otherPookieName];
+            const otherLocation = this._calculatePookieLocation(otherPookie, now);
+            const canHear = distance(location.x, location.y, otherLocation.x, otherLocation.y) <= this.getWorldState().level.speechDistance;
+            if (canHear) {
+              pookiesWithinSpeechDistance.add(otherPookieName);
+            }
+          } 
+          const describeOtherPookie = (otherPookieName: string) => {
+            const otherPookie = this.getWorldState().pookies[otherPookieName];
+            const otherLocation = this._calculatePookieLocation(otherPookie, now);
+            const isDead = otherPookie.currentAction.type === 'dead';
+            const canHear = pookiesWithinSpeechDistance.has(otherPookieName);
+            return `- ${otherPookieName} is at ${otherLocation.x}, ${otherLocation.y}. ${isDead ? "They are dead." : canHear ? "They can hear you if you say something." : "They are too far away from you to hear you right now."}`;
+          }
           const prompt = `
 
             You are a pookie in the Pookieverse. Your name is ${pookieName}.
@@ -309,15 +350,15 @@ export class World {
 
             You have multiple things you can do:
             - Idle. In this case, you will stay idle for a few seconds, and then think again. If a pookie or guardian angel talks to you during this time, you will be interrupted. This is great when you're waiting for something, like a response from another pookie.
-            - Say something. In this case, pookies near you will hear you and be able to interact with you.
+            - Say something. In this case, pookies near you will hear you and be able to interact with you. What you say should be relatively short, 1 sentence maximum
             - Interact with a facility. You can only do this if you're close to a facility.
             - Move. You can move either to a different pookie or to a facility.
 
             Here are all the pookies in the Pookieverse:
-            ${Object.entries(this.getWorldState().pookies).map(([pookieName, pookie]) => `- ${pookieName}`).join("\n")}
+            ${Object.keys(this.getWorldState().pookies).map(pookieName => `- ${describeOtherPookie(pookieName)}`).join("\n")}
 
             Here are all the facilities in the Pookieverse:
-            ${Object.entries(this.getWorldState().level.facilities).map(([facilityId, facility]) => `- ${facilityId}`).join("\n")}
+            ${Object.entries(this.getWorldState().level.facilities).map(([facilityId, facility]) => `- ${facility.displayName} is at ${facility.x}, ${facility.y}. When interacting with it: "${facility.interactionPrompt}". Its variables are as follows: ${JSON.stringify(facility.variables)}`).join("\n")}
             
             Below is your memory:
 
@@ -334,6 +375,7 @@ export class World {
             const possibleResponses = [
               { type: 'idle', seconds: 3 },
               { type: 'move-to-facility', facilityId: randomElement(Object.keys(this.getWorldState().level.facilities)) },
+              { type: 'say', message: `Hello${pookiesWithinSpeechDistance.size > 0 ? ` ${[...pookiesWithinSpeechDistance].map(pookieName => `"${pookieName}"`).join(" & ")}` : ""}, I'm a pookie!` },
             ] as const;
             const chosenResponse = possibleResponses[Math.floor(Math.random() * possibleResponses.length)];
 
@@ -367,6 +409,41 @@ export class World {
                       endX: this.getWorldState().level.facilities[chosenResponse.facilityId].x,
                       endY: this.getWorldState().level.facilities[chosenResponse.facilityId].y,
                       endTimestampMillis: now + 1_000 + dist / this.getWorldState().level.walkSpeedPerSecond * 1000,
+                    };
+                    break;
+                  case 'say':
+                    this._changeState().pookies[pookieName].thoughts.push({
+                      source: 'self',
+                      text: chosenResponse.message,
+                      spokenLoudly: true,
+                      timestampMillis: now,
+                    });
+                    for (const otherPookieName of pookiesWithinSpeechDistance) {
+                      if (!(otherPookieName in newPookies) || newPookies[otherPookieName].currentAction.type === 'dead') {
+                        // Pookie died or left in the meantime, skip them
+                        continue;
+                      }
+                      this._changeState().pookies[otherPookieName].thoughts.push({
+                        source: 'someone-else-said',
+                        sayerPookieName: pookieName,
+                        text: chosenResponse.message,
+                        timestampMillis: now,
+                      });
+                      // interrupt the other pookie in whatever they're doing
+                      this._changeState().pookies[otherPookieName].currentAction = {
+                        type: 'idle',
+                        x: this._calculatePookieLocation(newPookies[otherPookieName], now).x,
+                        y: this._calculatePookieLocation(newPookies[otherPookieName], now).y,
+                        sinceTimestampMillis: now,
+                        minIdleDurationMillis: 0,
+                      };
+                    }
+                    this._changeState().pookies[pookieName].currentAction = {
+                      type: 'idle',
+                      x: pookie.currentAction.x,
+                      y: pookie.currentAction.y,
+                      sinceTimestampMillis: now,
+                      minIdleDurationMillis: 3_000,
                     };
                     break;
                   default:
