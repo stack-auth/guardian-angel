@@ -12,6 +12,8 @@ import { getSession, saveSession, clearSession, getDeviceId, GameSession } from 
 export default function Home() {
   const router = useRouter();
   const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [showCustomLevelDialog, setShowCustomLevelDialog] = useState(false);
+  const [customBackgroundUrl, setCustomBackgroundUrl] = useState("");
   const [gameCode, setGameCode] = useState("");
   const [error, setError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -55,7 +57,7 @@ export default function Home() {
     validateSession();
   }, []);
 
-  const createGame = useCallback(async () => {
+  const createGame = useCallback(async (customBackgroundImageUrl?: string) => {
     if (isCreating) return;
     setIsCreating(true);
     setError("");
@@ -63,13 +65,24 @@ export default function Home() {
     try {
       const newGameCode = generateGameCode();
 
+      // Create level config, optionally with custom background
+      const levelConfig = customBackgroundImageUrl
+        ? {
+          ...DEFAULT_LEVEL,
+          backgroundImage: {
+            ...DEFAULT_LEVEL.backgroundImage,
+            url: customBackgroundImageUrl,
+          },
+        }
+        : DEFAULT_LEVEL;
+
       // Create the world on the backend
       const response = await fetch(`${BACKEND_URL}/worlds/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           worldId: newGameCode,
-          level: DEFAULT_LEVEL,
+          level: levelConfig,
         }),
       });
 
@@ -239,11 +252,22 @@ export default function Home() {
           {/* Create Game Button */}
           <PixelButton
             size="lg"
-            onClick={createGame}
+            onClick={() => createGame()}
             disabled={isCreating || isValidatingSession}
             className="w-full"
           >
             {isCreating ? "Creating..." : "🎮 Create New Game"}
+          </PixelButton>
+
+          {/* Custom Level Button */}
+          <PixelButton
+            size="lg"
+            variant="secondary"
+            onClick={() => setShowCustomLevelDialog(true)}
+            disabled={isCreating || isValidatingSession}
+            className="w-full"
+          >
+            🎨 Custom Level
           </PixelButton>
 
           {/* Divider */}
@@ -322,6 +346,87 @@ export default function Home() {
               onClick={() => {
                 setShowJoinDialog(false);
                 setGameCode("");
+                setError("");
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </PixelButton>
+          </div>
+        </div>
+      </PixelDialog>
+
+      {/* Custom Level Dialog */}
+      <PixelDialog
+        isOpen={showCustomLevelDialog}
+        onClose={() => {
+          setShowCustomLevelDialog(false);
+          setCustomBackgroundUrl("");
+          setError("");
+        }}
+        title="Custom Level"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-400 text-xs">
+            Paste an image URL to use as a custom background for your game world.
+          </p>
+
+          <PixelInput
+            label="Background Image URL"
+            placeholder="https://example.com/image.png"
+            value={customBackgroundUrl}
+            onChange={(e) => {
+              setCustomBackgroundUrl(e.target.value);
+              setError("");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && customBackgroundUrl.trim()) {
+                setShowCustomLevelDialog(false);
+                createGame(customBackgroundUrl.trim());
+                setCustomBackgroundUrl("");
+              }
+            }}
+            error={error}
+          />
+
+          {/* Preview */}
+          {customBackgroundUrl.trim() && (
+            <div className="border-2 border-slate-600 p-2 bg-slate-800">
+              <p className="text-slate-400 text-xs mb-2">Preview:</p>
+              <div className="relative w-full h-32 bg-slate-900 overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={customBackgroundUrl}
+                  alt="Background preview"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                  onLoad={(e) => {
+                    (e.target as HTMLImageElement).style.display = "block";
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <PixelButton
+              onClick={() => {
+                setShowCustomLevelDialog(false);
+                createGame(customBackgroundUrl.trim());
+                setCustomBackgroundUrl("");
+              }}
+              disabled={isCreating || !customBackgroundUrl.trim()}
+              className="flex-1"
+            >
+              {isCreating ? "Creating..." : "Create Game"}
+            </PixelButton>
+            <PixelButton
+              variant="secondary"
+              onClick={() => {
+                setShowCustomLevelDialog(false);
+                setCustomBackgroundUrl("");
                 setError("");
               }}
               className="flex-1"
