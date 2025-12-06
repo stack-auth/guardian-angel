@@ -24,3 +24,254 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes moveLeftRight {
+  0% {
+    transform: translateX(-50%) translateY(2rem) translateX(-2rem) scaleX(-1);
+  }
+  50% {
+    transform: translateX(-50%) translateY(2rem) translateX(2rem) scaleX(1);
+  }
+  100% {
+    transform: translateX(-50%) translateY(2rem) translateX(-2rem) scaleX(-1);
+  }
+}
+
+.animate-left-right {
+  animation: moveLeftRight 2s ease-in-out infinite;
+}
+
+@keyframes walk {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  25% {
+    transform: translateY(-1px);
+  }
+  75% {
+    transform: translateY(-1px);
+  }
+  50% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes legLeft {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-1px) rotate(-5deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(1px) rotate(5deg);
+  }
+}
+
+@keyframes legRight {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(1px) rotate(5deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-1px) rotate(-5deg);
+  }
+}
+
+.animate-walk {
+  animation: walk 0.5s ease-in-out infinite;
+}
+
+.pixel-leg-left {
+  animation: legLeft 0.5s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+.pixel-leg-right {
+  animation: legRight 0.5s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+/* Pixel art styling */
+.pixel-art {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+.pixel-head,
+.pixel-body,
+.pixel-shadow,
+.pixel-legs,
+.pixel-leg-left,
+.pixel-leg-right {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  transform: scale(1);
+  transform-origin: center;
+}
+
+.pixel-head,
+.pixel-body {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+/* Moving/Walking Animation */
+@keyframes walkCycle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  25% {
+    transform: translateY(-1px);
+  }
+  50% {
+    transform: translateY(0);
+  }
+  75% {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes legLeftWalk {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-1px) rotate(-5deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(1px) rotate(5deg);
+  }
+}
+
+@keyframes legRightWalk {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(1px) rotate(5deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-1px) rotate(-5deg);
+  }
+}
+
+.animate-moving {
+  animation: walkCycle 0.5s ease-in-out infinite;
+}
+
+.animate-moving .pixel-leg-left {
+  animation: legLeftWalk 0.5s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+.animate-moving .pixel-leg-right {
+  animation: legRightWalk 0.5s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+/* Talking Animation - Head Jump */
+@keyframes headJump {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+.animate-talking .pixel-head {
+  animation: headJump 0.4s ease-in-out infinite;
+}
+
+/* Thought Bubble Styles - Pixel Art Theme */
+.thought-bubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 6px;
+  background: white;
+  border: 2px solid #333;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 1.2;
+  color: #333;
+  white-space: nowrap;
+  max-width: 150px;
+  text-align: center;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  font-family: "Courier New", monospace;
+  z-index: 20;
+}
+
+.thought-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid white;
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.2));
+}
+
+.thought-bubble::before {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(1px);
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 9px solid #333;
+  z-index: -1;
+}
+
+/* Fade in animation for thought bubble */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.thought-bubble {
+  animation: fadeIn 0.2s ease-out;
+}
