@@ -305,11 +305,26 @@ export class World {
     if (!pookie) {
       return "pookie-not-found";
     }
+    const now = Date.now();
+    
+    // Add the guardian angel message to thoughts
     this._changeState().pookies[pookieName].thoughts.push({
       source: 'guardian-angel',
       text,
-      timestampMillis: Date.now(),
+      timestampMillis: now,
     });
+    
+    // Interrupt whatever the pookie was doing by setting them to idle
+    // This makes them immediately process the guardian angel's message on the next tick
+    const currentLocation = this._calculatePookieLocation(pookie, now);
+    this._changeState().pookies[pookieName].currentAction = {
+      type: 'idle',
+      x: currentLocation.x,
+      y: currentLocation.y,
+      sinceTimestampMillis: now,
+      minIdleDurationMillis: 0, // No minimum idle time - respond immediately
+    };
+    
     return "success";
   }
 
@@ -543,7 +558,13 @@ export class World {
             ${Object.keys(this.getWorldState().pookies).map(pookieName => `- ${describeOtherPookie(pookieName)}`).join("\n")}
 
             Here are all the facilities in the Pookieverse:
-            ${Object.entries(this.getWorldState().level.facilities).map(([facilityId, facility]) => `- ${facility.displayName} (id: ${facilityId}) is at ${facility.x}, ${facility.y}. When interacting with it: "${facility.interactionPrompt}". Its variables are as follows: ${JSON.stringify(facility.variables)}`).join("\n")}
+            ${Object.entries(this.getWorldState().level.facilities).map(([facilityId, facility]) => {
+              const pookieLocation = this._calculatePookieLocation(pookie, now);
+              const distToFacility = distance(pookieLocation.x, pookieLocation.y, facility.x, facility.y);
+              const facilityInteractionDist = this.getWorldState().level.facilityInteractionDistance;
+              const canInteract = distToFacility <= facilityInteractionDist;
+              return `- ${facility.displayName} (id: ${facilityId}) is at ${facility.x.toFixed(1)}, ${facility.y.toFixed(1)} (${distToFacility.toFixed(1)} units away). ${canInteract ? "✓ You can interact with it now!" : "Too far - move closer first."} Interaction: "${facility.interactionPrompt}"`;
+            }).join("\n")}
 
             ${pendingOffersText}
 
@@ -558,7 +579,7 @@ export class World {
             - {"type": "accept-offer", "offerId": "<offer id>", "thought": "<reasoning>"} - Accept a pending trade offer. You must have the items requested.
             - {"type": "reject-offer", "offerId": "<offer id>", "thought": "<reasoning>"} - Reject a pending trade offer.
 
-            Most of the time, especially if a conversation doesn't interest you, you should just move around. It's always a good idea to move to a facility as interacting with them can be very valuable. If there are many Pookies nearby in your spech range, you should probably walk somewhere else (you don't like it when it's too loud or crowded). However, if someone actively comes and engages with you and wants to talk to you, you should respond to them.
+            IMPORTANT: If you are close enough to a facility (marked with ✓), you should strongly consider using "interact-with-facility" to interact with it and get a free item! Moving around and interacting with facilities is very valuable. If there are many Pookies nearby, you might want to walk somewhere else (you don't like crowds). However, if someone actively talks to you, you should respond.
             
             Below is your memory:
 
@@ -711,8 +732,8 @@ export class World {
                       break;
                     }
                     
-                    // Deal random damage between 10-25
-                    const damage = Math.floor(Math.random() * 16) + 10;
+                    // Deal random damage between 25-50
+                    const damage = Math.floor(Math.random() * 26) + 25;
                     const newHealth = targetPookieObj.health - damage;
                     
                     // Add thoughts for both pookies

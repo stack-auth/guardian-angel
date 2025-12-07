@@ -324,16 +324,33 @@ function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode,
         {/* Hit damage indicator */}
         {isHit && recentHit && recentHit.source === "got-hit" && (
           <div
-            className="absolute left-1/2 text-xs font-bold"
+            className="absolute left-1/2 font-bold pointer-events-none"
             style={{
               transform: "translateX(-50%)",
-              top: "-32px",
-              color: "#ef4444",
-              textShadow: "1px 1px 0 #000, -1px -1px 0 #000",
-              animation: "fadeIn 0.2s ease-out",
+              top: "-40px",
+              fontSize: "18px",
+              color: "#ff0000",
+              textShadow: "2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 10px #ff0000",
+              animation: "damageFloat 0.5s ease-out forwards",
+              zIndex: 100,
             }}
           >
             -{recentHit.damage}
+          </div>
+        )}
+        
+        {/* Hit effect burst */}
+        {isHit && (
+          <div
+            className="absolute left-1/2 top-1/2 pointer-events-none"
+            style={{
+              transform: "translate(-50%, -50%)",
+              fontSize: "24px",
+              animation: "burstEffect 0.4s ease-out forwards",
+              zIndex: 99,
+            }}
+          >
+            💥
           </div>
         )}
 

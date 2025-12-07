@@ -343,23 +343,54 @@ export function PookieSidebar({ worldState, session, onSendMessage }: PookieSide
                 {selectedPookieData.personality || "No personality"}
               </div>
             </div>
-            
-            {/* Inventory */}
-            {selectedPookieData.inventory.length > 0 && (
-              <div className="flex flex-wrap gap-0.5">
+          </div>
+          
+          {/* Inventory Section */}
+          <div 
+            className="px-2 py-2"
+            style={{ borderBottom: "2px solid #a67c52" }}
+          >
+            <div className="flex items-center gap-1 mb-1.5">
+              <span className="text-[12px]">🎒</span>
+              <span className="text-[12px] font-medium" style={{ color: "#5c4a32" }}>Inventory</span>
+              <span className="text-[10px]" style={{ color: "#8b7355" }}>
+                ({selectedPookieData.inventory.reduce((sum, item) => sum + item.amount, 0)} items)
+              </span>
+            </div>
+            {selectedPookieData.inventory.length > 0 ? (
+              <div 
+                className="flex flex-wrap gap-1 p-1.5 rounded max-h-24 overflow-y-auto scrollbar-thin"
+                style={{
+                  background: "#f7edd5",
+                  border: "1px solid #a67c52",
+                }}
+              >
                 {selectedPookieData.inventory.map((item) => (
-                  <span 
+                  <div 
                     key={item.id} 
-                    className="text-[12px] px-1.5 py-0.5 rounded"
+                    className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded"
                     style={{
-                      background: "#d9c49a",
+                      background: "linear-gradient(180deg, #ebd9b4 0%, #d9c49a 100%)",
                       color: "#3d2814",
-                      border: "1px solid #8b5e34",
+                      border: "2px solid #8b5e34",
+                      boxShadow: "1px 1px 0 #5c3d1e",
                     }}
                   >
-                    {item.amount}× {item.id}
-                  </span>
+                    <span className="font-bold" style={{ color: "#4a8c59" }}>{item.amount}×</span>
+                    <span>{item.id}</span>
+                  </div>
                 ))}
+              </div>
+            ) : (
+              <div 
+                className="text-[11px] text-center py-2 rounded"
+                style={{
+                  background: "#f7edd5",
+                  color: "#8b7355",
+                  border: "1px dashed #a67c52",
+                }}
+              >
+                Empty backpack
               </div>
             )}
           </div>

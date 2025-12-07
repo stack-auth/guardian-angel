@@ -21,8 +21,13 @@ const { app } = expressWs(express());
 
 const PORT = Number(process.env.PORT) || 3001;
 
-// Middleware
-app.use(cors());
+// Middleware - very permissive CORS
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  credentials: false,
+}));
 app.use(express.json());
 
 // In-memory store for worlds
