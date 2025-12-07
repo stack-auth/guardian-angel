@@ -580,6 +580,8 @@ export class World {
             - {"type": "reject-offer", "offerId": "<offer id>", "thought": "<reasoning>"} - Reject a pending trade offer.
 
             IMPORTANT: If you are close enough to a facility (marked with ✓), you should strongly consider using "interact-with-facility" to interact with it and get a free item! Moving around and interacting with facilities is very valuable. If there are many Pookies nearby, you might want to walk somewhere else (you don't like crowds). However, if someone actively talks to you, you should respond.
+
+            If you have previously thought or said something already, don't repeat yourself. Say something new, or try something different.
             
             Below is your memory:
 
