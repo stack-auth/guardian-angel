@@ -90,8 +90,39 @@ interface PookieSpriteProps {
 function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode, speechDistancePercent, onClick }: PookieSpriteProps) {
   const [position, setPosition] = useState(() => getPookiePosition(pookie.currentAction));
   const animationFrameRef = useRef<number | null>(null);
+  const prevHealthRef = useRef<number>(pookie.health);
+  const hurtTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [hurtState, setHurtState] = useState<{ isHurt: boolean; amount: number }>({ isHurt: false, amount: 0 });
 
   const color = POOKIE_COLORS[getPookieColorIndex(name)];
+  
+  // Detect health loss and trigger hurt animation (using useMemo to avoid render-time setState)
+  const currentHealth = pookie.health;
+  const healthChanged = currentHealth < prevHealthRef.current;
+  
+  if (healthChanged) {
+    const damage = prevHealthRef.current - currentHealth;
+    prevHealthRef.current = currentHealth;
+    
+    // Clear any existing timeout
+    if (hurtTimeoutRef.current) {
+      clearTimeout(hurtTimeoutRef.current);
+    }
+    
+    // Use queueMicrotask to defer state update
+    queueMicrotask(() => {
+      setHurtState({ isHurt: true, amount: damage });
+      hurtTimeoutRef.current = setTimeout(() => {
+        setHurtState({ isHurt: false, amount: 0 });
+      }, 800);
+    });
+  } else if (currentHealth > prevHealthRef.current) {
+    // Health increased (healing), just update ref
+    prevHealthRef.current = currentHealth;
+  }
+  
+  const isHurt = hurtState.isHurt;
+  const hurtAmount = hurtState.amount;
 
   // Only show thoughts that are spoken loudly (source: "self" with spokenLoudly: true)
   const latestSpokenThought = [...pookie.thoughts]
@@ -246,9 +277,43 @@ function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode,
         </div>
       )}
 
+      {/* Hurt screen flash effect */}
+      {isHurt && (
+        <div 
+          className="absolute pointer-events-none animate-hurt-flash"
+          style={{
+            left: "-30px",
+            top: "-30px",
+            width: "80px",
+            height: "80px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(255,0,0,0.6) 0%, rgba(255,0,0,0.3) 40%, transparent 70%)",
+            zIndex: 200,
+          }}
+        />
+      )}
+
+      {/* Hurt damage number - large and very visible */}
+      {isHurt && hurtAmount > 0 && (
+        <div
+          className="absolute left-1/2 pointer-events-none animate-hurt-number"
+          style={{
+            transform: "translateX(-50%)",
+            top: "-50px",
+            fontSize: "24px",
+            fontWeight: "bold",
+            color: "#ff0000",
+            textShadow: "3px 3px 0 #000, -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 0 0 20px #ff0000, 0 0 40px #ff0000",
+            zIndex: 201,
+          }}
+        >
+          -{hurtAmount}
+        </div>
+      )}
+
       {/* Character body */}
       <div
-        className={`relative ${isMoving ? "animate-moving" : ""} ${isThinking ? "animate-talking" : ""} ${isInteracting ? "animate-interacting" : ""} ${isDying ? "animate-dying" : ""} ${isDead && !isDying ? "animate-dead" : ""} ${isHit ? "animate-hit" : ""} ${isAttacking ? "animate-attacking" : ""}`}
+        className={`relative ${isMoving ? "animate-moving" : ""} ${isThinking ? "animate-talking" : ""} ${isInteracting ? "animate-interacting" : ""} ${isDying ? "animate-dying" : ""} ${isDead && !isDying ? "animate-dead" : ""} ${isHit ? "animate-hit" : ""} ${isHurt ? "animate-hurt" : ""} ${isAttacking ? "animate-attacking" : ""}`}
         style={{ transform: facingLeft ? "scaleX(-1)" : "scaleX(1)" }}
       >
         {/* Shadow - smaller/different when dead */}

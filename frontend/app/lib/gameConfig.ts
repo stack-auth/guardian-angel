@@ -44,7 +44,13 @@ export const DEFAULT_LEVEL: CustomLevel = {
     widthPx: 2816,
     heightPx: 1536,
   },
-  itemTypes: {},
+  itemTypes: {
+    "berry": { displayName: "Berry", description: "A tasty wild berry", itemSprite: { url: "" } },
+    "wood": { displayName: "Wood", description: "A sturdy log of wood", itemSprite: { url: "" } },
+    "fish": { displayName: "Fish", description: "A fresh caught fish", itemSprite: { url: "" } },
+    "stone": { displayName: "Stone", description: "A small stone", itemSprite: { url: "" } },
+    "coin": { displayName: "Coin", description: "Currency for trading", itemSprite: { url: "" } },
+  },
   facilities: {
     mine: {
       x: 50,

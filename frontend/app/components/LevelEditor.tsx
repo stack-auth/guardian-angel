@@ -114,6 +114,9 @@ export function LevelEditor({
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
+  // World prompt state
+  const [worldPrompt, setWorldPrompt] = useState("");
+
   // Customization dialog state
   const [pendingFacility, setPendingFacility] = useState<PendingFacility | null>(null);
   const [customName, setCustomName] = useState("");
@@ -292,15 +295,17 @@ export function LevelEditor({
       ...DEFAULT_LEVEL,
       width: worldWidth,
       height: worldHeight,
+      worldPrompt: worldPrompt.trim() || undefined,
       backgroundImage: {
         url: backgroundImageUrl,
-        scale: scale,
+        widthPx: imageDimensions?.width || DEFAULT_LEVEL.backgroundImage.widthPx,
+        heightPx: imageDimensions?.height || DEFAULT_LEVEL.backgroundImage.heightPx,
       },
       facilities,
     };
 
     onCreateGame(levelConfig);
-  }, [placedFacilities, backgroundImageUrl, scale, imageDimensions, onCreateGame]);
+  }, [placedFacilities, backgroundImageUrl, scale, imageDimensions, onCreateGame, worldPrompt]);
 
   return (
     <div className="fixed inset-0 bg-slate-900 z-50 flex">
@@ -310,6 +315,38 @@ export function LevelEditor({
           <h2 className="text-white font-bold text-lg mb-1">Level Editor</h2>
           <p className="text-slate-400 text-xs">
             Click a facility, then click on the map to place it
+          </p>
+        </div>
+
+        {/* World Prompt */}
+        <div 
+          className="p-3 border-b-2"
+          style={{ 
+            borderColor: "#a67c52",
+            background: "linear-gradient(180deg, #ebd9b4 0%, #d9c49a 100%)",
+          }}
+        >
+          <label 
+            className="block text-xs uppercase tracking-wide mb-2 font-bold"
+            style={{ color: "#5c4a32" }}
+          >
+            🌍 World Prompt
+          </label>
+          <textarea
+            className="w-full px-3 py-2 text-xs resize-none rounded focus:outline-none"
+            style={{
+              background: "#f7edd5",
+              border: "2px solid #8b5e34",
+              color: "#3d2814",
+              boxShadow: "inset 1px 1px 0 #d9c49a",
+            }}
+            rows={3}
+            placeholder="Describe your world... (e.g., A peaceful village where pookies farm and trade)"
+            value={worldPrompt}
+            onChange={(e) => setWorldPrompt(e.target.value)}
+          />
+          <p className="mt-1 text-[10px]" style={{ color: "#8b7355" }}>
+            This helps the AI understand the theme of your world
           </p>
         </div>
 
