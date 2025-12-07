@@ -1,4 +1,4 @@
-// Note: All x, y, width, height values are in units and can be fractional (use backgroundImage.scale to convert to display pixels).
+// Note: All x, y, width, height values are in game units. Use backgroundImage.widthPx/heightPx for actual image dimensions.
 
 import { distance, randomElement, randomPointWithinRadius, runAsynchronously } from "./util.js";
 import { askPookie, type PookieResponse } from "./gemini.js";
@@ -30,8 +30,10 @@ type CustomLevel = {
   walkSpeedPerSecond: number,
   backgroundImage: {
     url: string,
-    /** 1.0 means 1 pixel is 1 unit, 0.5 means 2 pixels are 1 unit, 10.0 means 1 pixel is 10 units, etc. Usually < 1.0 */
-    scale: number,
+    /** Actual image width in pixels */
+    widthPx: number,
+    /** Actual image height in pixels */
+    heightPx: number,
   },
   itemTypes: {
     [itemTypeId: string]: {
@@ -502,6 +504,8 @@ export class World {
             - {"type": "offer-trade", "targetPookieName": "<pookie name>", "itemsOffered": [{"itemId": "<item>", "amount": <num>}], "itemsRequested": [{"itemId": "<item>", "amount": <num>}], "thought": "<reasoning>"} - Offer a trade to a pookie within speech distance. You must have the items you're offering.
             - {"type": "accept-offer", "offerId": "<offer id>", "thought": "<reasoning>"} - Accept a pending trade offer. You must have the items requested.
             - {"type": "reject-offer", "offerId": "<offer id>", "thought": "<reasoning>"} - Reject a pending trade offer.
+
+            Most of the time, especially if a conversation doesn't interest you, you should just move around. It's always a good idea to move to a facility as interacting with them can be very valuable. If there are many Pookies nearby in your spech range, you should probably walk somewhere else (you don't like it when it's too loud or crowded). However, if someone actively comes and engages with you and wants to talk to you, you should respond to them.
             
             Below is your memory:
 
@@ -601,7 +605,7 @@ export class World {
                         x: this._calculatePookieLocation(newPookies[otherPookieName], now).x,
                         y: this._calculatePookieLocation(newPookies[otherPookieName], now).y,
                         sinceTimestampMillis: now,
-                        minIdleDurationMillis: 3_000,
+                        minIdleDurationMillis: 7_000,
                       };
                     }
                     this._changeState().pookies[pookieName].currentAction = {
@@ -609,7 +613,7 @@ export class World {
                       x: pookie.currentAction.x,
                       y: pookie.currentAction.y,
                       sinceTimestampMillis: now,
-                      minIdleDurationMillis: 5_000,
+                      minIdleDurationMillis: 12_000,
                     };
                     break;
                   case 'move-to-pookie': {

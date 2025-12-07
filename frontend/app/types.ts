@@ -17,8 +17,10 @@ export type CustomLevel = {
   walkSpeedPerSecond: number;
   backgroundImage: {
     url: string;
-    /** 1.0 means 1 pixel is 1 unit, 0.5 means 2 pixels are 1 unit, 10.0 means 1 pixel is 10 units, etc. Usually < 1.0 */
-    scale: number;
+    /** Actual image width in pixels */
+    widthPx: number;
+    /** Actual image height in pixels */
+    heightPx: number;
   };
   itemTypes: {
     [itemTypeId: string]: {

@@ -11,8 +11,8 @@ import {
 import type { Pookie, PookieThought, WorldState } from "../../types";
 import { PixelButton } from "../../components/PixelButton";
 import { QRCodeDialog } from "../../components/QRCodeDialog";
-import { ChatPanel } from "../../components/ChatPanel";
 import { SystemPromptDialog } from "../../components/SystemPromptDialog";
+import { PookieSidebar } from "../../components/PookieSidebar";
 import {
   getSessionForWorld,
   saveSession,
@@ -79,23 +79,25 @@ function getThoughtText(thought: PookieThought): string {
 interface PookieSpriteProps {
   pookie: Pookie;
   name: string;
-  scale: number;
+  levelWidth: number;
+  levelHeight: number;
   isOwn: boolean;
   debugMode: boolean;
-  speechDistance: number;
+  speechDistancePercent: number;
   onClick?: () => void;
 }
 
-function PookieSprite({ pookie, name, scale, isOwn, debugMode, speechDistance, onClick }: PookieSpriteProps) {
+function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode, speechDistancePercent, onClick }: PookieSpriteProps) {
   const [position, setPosition] = useState(() => getPookiePosition(pookie.currentAction));
   const animationFrameRef = useRef<number | null>(null);
 
   const color = POOKIE_COLORS[getPookieColorIndex(name)];
 
-  const latestThought = pookie.thoughts.length > 0
-    ? pookie.thoughts[pookie.thoughts.length - 1]
-    : null;
-  const showThought = latestThought && Date.now() - latestThought.timestampMillis < 5000;
+  // Only show thoughts that are spoken loudly (source: "self" with spokenLoudly: true)
+  const latestSpokenThought = [...pookie.thoughts]
+    .reverse()
+    .find(t => t.source === "self" && t.spokenLoudly) || null;
+  const showThought = latestSpokenThought && Date.now() - latestSpokenThought.timestampMillis < 5000;
 
   useEffect(() => {
     let isActive = true;
@@ -133,34 +135,31 @@ function PookieSprite({ pookie, name, scale, isOwn, debugMode, speechDistance, o
   const facingDirection = getPookieFacingDirection(pookie.currentAction);
   const facingLeft = facingDirection === "left";
 
-  // Convert world units to pixels
-  const pixelX = position.x / scale;
-  const pixelY = position.y / scale;
-
-  // Calculate speech distance circle radius in pixels
-  const speechRadiusPixels = speechDistance / scale;
+  // Convert world units to percentages for responsive positioning
+  const percentX = (position.x / levelWidth) * 100;
+  const percentY = (position.y / levelHeight) * 100;
 
   return (
     <div
       className={`absolute pixel-art ${onClick ? "cursor-pointer" : ""}`}
       style={{
-        left: `${pixelX}px`,
-        top: `${pixelY}px`,
+        left: `${percentX}%`,
+        top: `${percentY}%`,
         transform: "translate(-50%, -50%)",
         opacity: isDead ? 0.5 : 1,
-        zIndex: Math.floor(pixelY),
+        zIndex: Math.floor(percentY * 100),
       }}
       onClick={onClick}
     >
-      {/* Debug: Speech distance circle */}
+      {/* Debug: Speech distance circle - use percentage-based sizing */}
       {debugMode && (
         <div
           className="absolute rounded-full pointer-events-none"
           style={{
-            width: `${speechRadiusPixels * 2}px`,
-            height: `${speechRadiusPixels * 2}px`,
-            left: `${-speechRadiusPixels}px`,
-            top: `${-speechRadiusPixels}px`,
+            width: `${speechDistancePercent * 2}vmin`,
+            height: `${speechDistancePercent * 2}vmin`,
+            left: `${-speechDistancePercent}vmin`,
+            top: `${-speechDistancePercent}vmin`,
             border: `2px dashed ${color.base}80`,
             backgroundColor: `${color.base}10`,
           }}
@@ -230,13 +229,13 @@ function PookieSprite({ pookie, name, scale, isOwn, debugMode, speechDistance, o
         {/* Shadow */}
         <div className="absolute left-1/2 top-full -translate-x-1/2 translate-y-0.5 w-3 h-0.5 bg-black/40 pixel-shadow" />
 
-        {/* Thought Bubble */}
-        {showThought && latestThought && (
+        {/* Speech Bubble - only shown for spoken loudly thoughts */}
+        {showThought && latestSpokenThought && (
           <div
             className="absolute bottom-full left-1/2 mb-6"
             style={{ transform: `translateX(-50%) ${facingLeft ? "scaleX(-1)" : "scaleX(1)"}` }}
           >
-            <ThoughtBubble message={getThoughtText(latestThought)} />
+            <ThoughtBubble message={latestSpokenThought.text} />
           </div>
         )}
 
@@ -382,18 +381,23 @@ export default function GamePage() {
   const [isJoining, setIsJoining] = useState(false);
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
-  const [isChatCollapsed, setIsChatCollapsed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debugMode, setDebugMode] = useState(false);
-  const [showControls, setShowControls] = useState(true);
 
   const { worldState, connectionStatus } = useWorldState({
     worldId: gameId,
     autoReconnect: true,
   });
 
-  const scale = worldState?.level.backgroundImage.scale || DEFAULT_LEVEL.backgroundImage.scale;
   const speechDistance = worldState?.level.speechDistance || DEFAULT_LEVEL.speechDistance;
+  
+  // Game world dimensions (for positioning calculations)
+  const levelWidth = worldState?.level.width || DEFAULT_LEVEL.width;
+  const levelHeight = worldState?.level.height || DEFAULT_LEVEL.height;
+  
+  // Actual image dimensions in pixels
+  const mapWidthPx = worldState?.level.backgroundImage.widthPx || DEFAULT_LEVEL.backgroundImage.widthPx;
+  const mapHeightPx = worldState?.level.backgroundImage.heightPx || DEFAULT_LEVEL.backgroundImage.heightPx;
 
   // Check session on mount
   useEffect(() => {
@@ -462,6 +466,20 @@ export default function GamePage() {
   const gameUrl = getShareableGameUrl(`/game/${gameId}`);
   const myPookie = session && worldState?.pookies[session.pookieName];
 
+  // Send message as guardian angel
+  const sendGuardianMessage = useCallback(async (message: string) => {
+    if (!session) return;
+    try {
+      await fetch(`${BACKEND_URL}/worlds/${gameId}/pookies/${session.pookieName}/guardian-message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+    } catch (err) {
+      console.error("Failed to send guardian message:", err);
+    }
+  }, [gameId, session]);
+
   // Check if world exists
   if (connectionStatus === "error" || (connectionStatus === "connected" && !worldState)) {
     return (
@@ -480,130 +498,180 @@ export default function GamePage() {
   }
 
   return (
-    <div
-      className="min-h-screen w-full relative overflow-hidden"
-      style={{
-        backgroundImage: `url(${worldState?.level.backgroundImage.url || "/Map.png"})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
-    >
-      {/* Render all pookies */}
-      {worldState &&
-        Object.entries(worldState.pookies).map(([pookieName, pookie]) => (
-          <PookieSprite
-            key={pookieName}
-            name={pookieName}
-            pookie={pookie}
-            scale={scale}
-            isOwn={session?.pookieName === pookieName}
-            debugMode={debugMode}
-            speechDistance={speechDistance}
-          />
-        ))}
+    <div className="h-screen w-full flex overflow-hidden" style={{ backgroundColor: "#1a1a2e" }}>
+      {/* Map Section - hidden on mobile, flex-1 on desktop */}
+      <div className="hidden md:flex flex-1 items-center justify-center relative overflow-hidden">
+        {/* Map container - maintains aspect ratio and fits within available space */}
+        <div
+          className="relative"
+          style={{
+            width: `min(${mapWidthPx}px, calc(100vw - 320px), calc(100vh * ${mapWidthPx / mapHeightPx}))`,
+            height: `min(${mapHeightPx}px, 100vh, calc((100vw - 320px) * ${mapHeightPx / mapWidthPx}))`,
+            backgroundImage: `url(${worldState?.level.backgroundImage.url || "/Map.png"})`,
+            backgroundSize: "100% 100%",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
+        >
+          {/* Render all pookies - positioned relative to the map container */}
+          {worldState &&
+            Object.entries(worldState.pookies).map(([pookieName, pookie]) => (
+              <PookieSprite
+                key={pookieName}
+                name={pookieName}
+                pookie={pookie}
+                levelWidth={levelWidth}
+                levelHeight={levelHeight}
+                isOwn={session?.pookieName === pookieName}
+                debugMode={debugMode}
+                speechDistancePercent={(speechDistance / levelWidth) * 100}
+              />
+            ))}
+        </div>
 
-      {/* UI Overlay - Toggle button for mobile */}
-      <button
-        className="absolute top-2 left-2 z-50 sm:hidden bg-slate-900/90 border border-slate-600 px-2 py-1 text-white text-xs rounded"
-        onClick={() => setShowControls(!showControls)}
-      >
-        {showControls ? "✕" : "☰"}
-      </button>
+        {/* Map UI Overlays */}
+        {/* Top Left - Compact Game Info & Controls */}
+        <div className="absolute top-2 left-4 z-30">
+          <div className="bg-slate-900/90 border border-slate-600 px-3 py-2 text-sm">
+            {/* Game ID & Status - Single Row */}
+            <div className="flex items-center gap-2 mb-1">
+              <span
+                className={`w-1.5 h-1.5 rounded-full shrink-0 ${connectionStatus === "connected"
+                  ? "bg-emerald-500"
+                  : connectionStatus === "connecting"
+                    ? "bg-yellow-500 animate-pulse"
+                    : "bg-red-500"
+                  }`}
+              />
+              <span className="text-white font-bold font-mono truncate">{gameId}</span>
+              <span className="text-slate-500 text-xs">
+                {worldState ? Object.keys(worldState.pookies).length : 0}/{worldState?.level.maxPookies || 10}
+              </span>
+            </div>
 
-      {/* Top Left - Compact Game Info & Controls */}
-      <div className={`absolute top-2 left-2 sm:left-4 z-30 ${showControls ? "block" : "hidden"} sm:block`}>
-        <div className="bg-slate-900/90 border border-slate-600 px-2 sm:px-3 py-2 text-xs sm:text-sm max-w-[200px] sm:max-w-none">
-          {/* Game ID & Status - Single Row */}
-          <div className="flex items-center gap-2 mb-1">
-            <span
-              className={`w-1.5 h-1.5 rounded-full shrink-0 ${connectionStatus === "connected"
-                ? "bg-emerald-500"
-                : connectionStatus === "connecting"
-                  ? "bg-yellow-500 animate-pulse"
-                  : "bg-red-500"
-                }`}
-            />
-            <span className="text-white font-bold font-mono truncate">{gameId}</span>
-            <span className="text-slate-500 text-xs">
-              {worldState ? Object.keys(worldState.pookies).length : 0}/{worldState?.level.maxPookies || 10}
-            </span>
+            {/* Session Info */}
+            {session ? (
+              <div className="space-y-1.5">
+                <div className="text-emerald-300 text-xs truncate">
+                  🪽 {session.pookieName}
+                  {!myPookie && <span className="text-slate-500 ml-1">(loading...)</span>}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={() => setShowQRDialog(true)}
+                    className="bg-slate-700 hover:bg-slate-600 text-white px-2 py-0.5 text-xs rounded"
+                  >
+                    📱
+                  </button>
+                  <button
+                    onClick={() => setShowSystemPrompt(true)}
+                    className="bg-slate-700 hover:bg-slate-600 text-white px-2 py-0.5 text-xs rounded"
+                  >
+                    🧠
+                  </button>
+                  <button
+                    onClick={leaveGame}
+                    className="bg-red-900/50 hover:bg-red-800 text-red-300 px-2 py-0.5 text-xs rounded"
+                  >
+                    Exit
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {error && <p className="text-red-400 text-xs">{error}</p>}
+                <button
+                  onClick={joinGame}
+                  disabled={isJoining || connectionStatus !== "connected"}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-2 py-1 text-xs rounded font-bold"
+                >
+                  {isJoining ? "..." : "🪽 Join"}
+                </button>
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Session Info */}
-          {session ? (
-            <div className="space-y-1.5">
-              <div className="text-emerald-300 text-xs truncate">
-                🪽 {session.pookieName}
-                {!myPookie && <span className="text-slate-500 ml-1">(loading...)</span>}
-              </div>
-              <div className="flex flex-wrap gap-1">
-                <button
-                  onClick={() => setShowQRDialog(true)}
-                  className="bg-slate-700 hover:bg-slate-600 text-white px-2 py-0.5 text-xs rounded"
-                >
-                  📱
-                </button>
-                <button
-                  onClick={() => setShowSystemPrompt(true)}
-                  className="bg-slate-700 hover:bg-slate-600 text-white px-2 py-0.5 text-xs rounded"
-                >
-                  🧠
-                </button>
-                <button
-                  onClick={leaveGame}
-                  className="bg-red-900/50 hover:bg-red-800 text-red-300 px-2 py-0.5 text-xs rounded"
-                >
-                  Exit
-                </button>
-              </div>
+        {/* Top Right - Debug Toggle */}
+        <div className="absolute top-2 right-4 z-30">
+          <button
+            onClick={() => setDebugMode(!debugMode)}
+            className={`px-2 py-1 text-xs rounded border ${debugMode
+              ? "bg-amber-900/90 border-amber-600 text-amber-300"
+              : "bg-slate-900/90 border-slate-600 text-slate-400 hover:text-white"
+              }`}
+            title="Toggle Debug Mode"
+          >
+            🐛
+          </button>
+        </div>
+
+        {/* Debug Panel */}
+        <DebugPanel
+          isOpen={debugMode}
+          worldState={worldState}
+          connectionStatus={connectionStatus}
+        />
+      </div>
+
+      {/* Right Sidebar - always visible, full width on mobile */}
+      <div className="w-full md:w-80 h-full flex flex-col">
+        {/* Mobile header with game info */}
+        <div className="md:hidden p-3 border-b border-slate-700 bg-slate-900">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span
+                className={`w-2 h-2 rounded-full ${connectionStatus === "connected"
+                  ? "bg-emerald-500"
+                  : connectionStatus === "connecting"
+                    ? "bg-yellow-500 animate-pulse"
+                    : "bg-red-500"
+                  }`}
+              />
+              <span className="text-white font-bold font-mono text-sm">{gameId}</span>
+              <span className="text-slate-500 text-xs">
+                {worldState ? Object.keys(worldState.pookies).length : 0}/{worldState?.level.maxPookies || 10}
+              </span>
             </div>
-          ) : (
-            <div className="space-y-1">
-              {error && <p className="text-red-400 text-xs">{error}</p>}
-              <button
-                onClick={joinGame}
-                disabled={isJoining || connectionStatus !== "connected"}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-2 py-1 text-xs rounded font-bold"
-              >
-                {isJoining ? "..." : "🪽 Join"}
-              </button>
+            <div className="flex gap-1">
+              {session ? (
+                <>
+                  <button
+                    onClick={() => setShowQRDialog(true)}
+                    className="bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 text-xs rounded"
+                  >
+                    📱
+                  </button>
+                  <button
+                    onClick={leaveGame}
+                    className="bg-red-900/50 hover:bg-red-800 text-red-300 px-2 py-1 text-xs rounded"
+                  >
+                    Exit
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={joinGame}
+                  disabled={isJoining || connectionStatus !== "connected"}
+                  className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-3 py-1 text-xs rounded font-bold"
+                >
+                  {isJoining ? "..." : "🪽 Join"}
+                </button>
+              )}
             </div>
-          )}
+          </div>
+          {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+        </div>
+        
+        {/* Sidebar content */}
+        <div className="flex-1 overflow-hidden">
+          <PookieSidebar
+            worldState={worldState}
+            session={session}
+            onSendMessage={sendGuardianMessage}
+          />
         </div>
       </div>
-
-      {/* Top Right - Debug Toggle */}
-      <div className="absolute top-2 right-2 sm:right-4 z-30">
-        <button
-          onClick={() => setDebugMode(!debugMode)}
-          className={`px-2 py-1 text-xs rounded border ${debugMode
-            ? "bg-amber-900/90 border-amber-600 text-amber-300"
-            : "bg-slate-900/90 border-slate-600 text-slate-400 hover:text-white"
-            }`}
-          title="Toggle Debug Mode"
-        >
-          🐛
-        </button>
-      </div>
-
-      {/* Debug Panel */}
-      <DebugPanel
-        isOpen={debugMode}
-        worldState={worldState}
-        connectionStatus={connectionStatus}
-      />
-
-      {/* Chat Panel (show if session exists, even if pookie not yet in world state) */}
-      {session && (
-        <ChatPanel
-          worldId={gameId}
-          pookieName={session.pookieName}
-          thoughts={myPookie?.thoughts || []}
-          isCollapsed={isChatCollapsed}
-          onToggle={() => setIsChatCollapsed(!isChatCollapsed)}
-        />
-      )}
 
       {/* QR Code Dialog */}
       <QRCodeDialog

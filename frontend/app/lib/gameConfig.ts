@@ -16,7 +16,8 @@ export const DEFAULT_LEVEL: CustomLevel = {
   walkSpeedPerSecond: 8,
   backgroundImage: {
     url: "/Map.png",
-    scale: 0.1, // 10 pixels = 1 unit
+    widthPx: 2816,
+    heightPx: 1536,
   },
   itemTypes: {},
   facilities: {

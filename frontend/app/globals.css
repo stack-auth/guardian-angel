@@ -219,10 +219,11 @@ body {
   padding: 6px 10px;
   border-radius: 4px;
   font-size: 10px;
-  line-height: 1.2;
+  line-height: 1.3;
   color: #333;
-  white-space: nowrap;
-  max-width: 150px;
+  white-space: normal;
+  width: max-content;
+  max-width: 200px;
   text-align: center;
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
   image-rendering: pixelated;
@@ -230,6 +231,8 @@ body {
   image-rendering: crisp-edges;
   font-family: "Courier New", monospace;
   z-index: 20;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .thought-bubble::after {
@@ -416,7 +419,7 @@ body {
 
 @media (max-width: 640px) {
   .thought-bubble {
-    max-width: 120px;
+    max-width: 160px;
     font-size: 9px;
     padding: 4px 8px;
   }

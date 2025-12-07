@@ -253,7 +253,8 @@ export function renderHomePage(worlds: WorldsViewData, maxPookies: number, port:
   "facilityInteractionDistance": 30,
   "backgroundImage": {
     "url": "https://example.com/bg.png",
-    "scale": 0.5
+    "widthPx": 1920,
+    "heightPx": 1080
   },
   "itemTypes": {
     "berry": { "displayName": "Berry", "description": "A tasty berry", "itemSprite": { "url": "" } },
