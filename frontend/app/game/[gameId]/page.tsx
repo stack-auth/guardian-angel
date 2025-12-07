@@ -128,12 +128,29 @@ function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode,
     };
   }, [pookie.currentAction]);
 
-  const isMoving = isPookieMoving(pookie.currentAction, Date.now());
+  const now = Date.now();
+  const isMoving = isPookieMoving(pookie.currentAction, now);
   const isThinking = pookie.currentAction.type === "thinking";
   const isDead = pookie.currentAction.type === "dead";
   const isInteracting = pookie.currentAction.type === "interact-with-facility";
   const facingDirection = getPookieFacingDirection(pookie.currentAction);
   const facingLeft = facingDirection === "left";
+  
+  // Check if recently got hit (within last 500ms)
+  const recentHit = pookie.thoughts.find(
+    t => t.source === "got-hit" && now - t.timestampMillis < 500
+  );
+  const isHit = !!recentHit;
+  
+  // Check if recently attacked (within last 300ms)
+  const recentAttack = pookie.thoughts.find(
+    t => t.source === "hit-someone" && now - t.timestampMillis < 300
+  );
+  const isAttacking = !!recentAttack;
+  
+  // For dead pookies, check if still in death animation
+  const isDying = isDead && pookie.currentAction.type === "dead" && 
+    now - pookie.currentAction.sinceTimestampMillis < 500;
 
   // Convert world units to percentages for responsive positioning
   const percentX = (position.x / levelWidth) * 100;
@@ -192,21 +209,29 @@ function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode,
         {name}
       </div>
 
-      {/* Health/Food bars */}
-      <div
-        className="absolute left-1/2 flex flex-col gap-0.5"
-        style={{
-          transform: "translateX(-50%)",
-          top: "48px",
-        }}
-      >
-        <div className="w-6 h-1 bg-gray-700 rounded-sm overflow-hidden">
-          <div className="h-full bg-red-500" style={{ width: `${pookie.health}%` }} />
+      {/* Health/Food bars - hidden when dead */}
+      {!isDead && (
+        <div
+          className="absolute left-1/2 flex flex-col gap-0.5"
+          style={{
+            transform: "translateX(-50%)",
+            top: "48px",
+          }}
+        >
+          <div className="w-6 h-1 bg-gray-700 rounded-sm overflow-hidden">
+            <div 
+              className="h-full transition-all" 
+              style={{ 
+                width: `${pookie.health}%`,
+                backgroundColor: pookie.health < 30 ? "#ef4444" : pookie.health < 60 ? "#f59e0b" : "#22c55e",
+              }} 
+            />
+          </div>
+          <div className="w-6 h-1 bg-gray-700 rounded-sm overflow-hidden">
+            <div className="h-full bg-yellow-500" style={{ width: `${pookie.food}%` }} />
+          </div>
         </div>
-        <div className="w-6 h-1 bg-gray-700 rounded-sm overflow-hidden">
-          <div className="h-full bg-yellow-500" style={{ width: `${pookie.food}%` }} />
-        </div>
-      </div>
+      )}
 
       {/* Debug info */}
       {debugMode && (
@@ -223,14 +248,31 @@ function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode,
 
       {/* Character body */}
       <div
-        className={`relative ${isMoving ? "animate-moving" : ""} ${isThinking ? "animate-talking" : ""}`}
+        className={`relative ${isMoving ? "animate-moving" : ""} ${isThinking ? "animate-talking" : ""} ${isInteracting ? "animate-interacting" : ""} ${isDying ? "animate-dying" : ""} ${isDead && !isDying ? "animate-dead" : ""} ${isHit ? "animate-hit" : ""} ${isAttacking ? "animate-attacking" : ""}`}
         style={{ transform: facingLeft ? "scaleX(-1)" : "scaleX(1)" }}
       >
-        {/* Shadow */}
-        <div className="absolute left-1/2 top-full -translate-x-1/2 translate-y-0.5 w-3 h-0.5 bg-black/40 pixel-shadow" />
+        {/* Shadow - smaller/different when dead */}
+        <div 
+          className={`absolute left-1/2 top-full -translate-x-1/2 translate-y-0.5 bg-black/40 pixel-shadow transition-all`}
+          style={{
+            width: isDead ? "8px" : "12px",
+            height: isDead ? "4px" : "2px",
+            borderRadius: isDead ? "50%" : "1px",
+          }}
+        />
+
+        {/* Ghost rising from dead pookie */}
+        {isDead && !isDying && (
+          <div 
+            className="absolute left-1/2 -translate-x-1/2 dead-ghost pointer-events-none"
+            style={{ top: "-24px" }}
+          >
+            <span className="text-lg opacity-50">👻</span>
+          </div>
+        )}
 
         {/* Speech Bubble - only shown for spoken loudly thoughts */}
-        {showThought && latestSpokenThought && (
+        {showThought && latestSpokenThought && !isDead && (
           <div
             className="absolute bottom-full left-1/2 mb-6"
             style={{ transform: `translateX(-50%) ${facingLeft ? "scaleX(-1)" : "scaleX(1)"}` }}
@@ -255,13 +297,43 @@ function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode,
         {/* Interacting with facility indicator */}
         {isInteracting && (
           <div
-            className="absolute left-1/2 text-lg animate-bounce"
+            className="absolute left-1/2 text-lg"
             style={{
               transform: `translateX(-50%) ${facingLeft ? "scaleX(-1)" : "scaleX(1)"}`,
               top: "-28px",
+              animation: "interactBob 0.6s ease-in-out infinite",
             }}
           >
-            ⚡
+            ⚒️
+          </div>
+        )}
+
+        {/* Dead indicator - skull */}
+        {isDead && (
+          <div
+            className="absolute left-1/2 text-sm"
+            style={{
+              transform: `translateX(-50%) ${facingLeft ? "scaleX(-1)" : "scaleX(1)"}`,
+              top: "-20px",
+            }}
+          >
+            💀
+          </div>
+        )}
+
+        {/* Hit damage indicator */}
+        {isHit && recentHit && recentHit.source === "got-hit" && (
+          <div
+            className="absolute left-1/2 text-xs font-bold"
+            style={{
+              transform: "translateX(-50%)",
+              top: "-32px",
+              color: "#ef4444",
+              textShadow: "1px 1px 0 #000, -1px -1px 0 #000",
+              animation: "fadeIn 0.2s ease-out",
+            }}
+          >
+            -{recentHit.damage}
           </div>
         )}
 
@@ -269,29 +341,39 @@ function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode,
         <div
           className="w-4 h-4 relative z-10 pixel-head"
           style={{
-            backgroundColor: color.base,
-            border: `1px solid ${color.border}`,
+            backgroundColor: isDead ? "#9ca3af" : color.base,
+            border: `1px solid ${isDead ? "#6b7280" : color.border}`,
             borderRadius: "1px",
           }}
         >
-          <div className="absolute top-0 left-0 w-2.5 h-1.5" style={{ backgroundColor: color.light, borderRadius: "0" }} />
-          <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: color.dark, borderRadius: "0" }} />
-          <div className="absolute left-0.5 top-1 w-1 h-1 bg-white" style={{ border: `0.5px solid ${color.border}`, borderRadius: "0" }} />
-          <div className="absolute right-0.5 top-1 w-1 h-1 bg-white" style={{ border: `0.5px solid ${color.border}`, borderRadius: "0" }} />
+          <div className="absolute top-0 left-0 w-2.5 h-1.5" style={{ backgroundColor: isDead ? "#d1d5db" : color.light, borderRadius: "0" }} />
+          <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: isDead ? "#6b7280" : color.dark, borderRadius: "0" }} />
+          {/* Eyes - X's when dead */}
+          {isDead ? (
+            <>
+              <div className="absolute left-0.5 top-1 w-1 h-1 text-[6px] leading-none" style={{ color: color.border }}>✕</div>
+              <div className="absolute right-0.5 top-1 w-1 h-1 text-[6px] leading-none" style={{ color: color.border }}>✕</div>
+            </>
+          ) : (
+            <>
+              <div className="absolute left-0.5 top-1 w-1 h-1 bg-white" style={{ border: `0.5px solid ${color.border}`, borderRadius: "0" }} />
+              <div className="absolute right-0.5 top-1 w-1 h-1 bg-white" style={{ border: `0.5px solid ${color.border}`, borderRadius: "0" }} />
+            </>
+          )}
         </div>
 
         {/* Body */}
         <div
           className="absolute left-1/2 top-4 -translate-x-1/2 w-4 h-4 pixel-body"
           style={{
-            backgroundColor: color.dark,
-            border: `1px solid ${color.border}`,
+            backgroundColor: isDead ? "#6b7280" : color.dark,
+            border: `1px solid ${isDead ? "#4b5563" : color.border}`,
             borderRadius: "1px 1px 0 0",
           }}
         >
-          <div className="absolute top-0 left-0 w-2.5 h-1.5" style={{ backgroundColor: color.base, borderRadius: "0" }} />
-          <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: color.darker, borderRadius: "0" }} />
-          <div className="absolute top-0 right-0 w-0.5 h-full" style={{ backgroundColor: color.darker, borderRadius: "0" }} />
+          <div className="absolute top-0 left-0 w-2.5 h-1.5" style={{ backgroundColor: isDead ? "#9ca3af" : color.base, borderRadius: "0" }} />
+          <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: isDead ? "#4b5563" : color.darker, borderRadius: "0" }} />
+          <div className="absolute top-0 right-0 w-0.5 h-full" style={{ backgroundColor: isDead ? "#4b5563" : color.darker, borderRadius: "0" }} />
         </div>
 
         {/* Legs */}
@@ -299,22 +381,22 @@ function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode,
           <div
             className="w-1.5 h-2.5 pixel-leg-left"
             style={{
-              backgroundColor: color.dark,
-              border: `1px solid ${color.border}`,
+              backgroundColor: isDead ? "#6b7280" : color.dark,
+              border: `1px solid ${isDead ? "#4b5563" : color.border}`,
               borderRadius: "0 0 1px 1px",
             }}
           >
-            <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: color.darker, borderRadius: "0" }} />
+            <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: isDead ? "#4b5563" : color.darker, borderRadius: "0" }} />
           </div>
           <div
             className="w-1.5 h-2.5 pixel-leg-right"
             style={{
-              backgroundColor: color.dark,
-              border: `1px solid ${color.border}`,
+              backgroundColor: isDead ? "#6b7280" : color.dark,
+              border: `1px solid ${isDead ? "#4b5563" : color.border}`,
               borderRadius: "0 0 1px 1px",
             }}
           >
-            <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: color.darker, borderRadius: "0" }} />
+            <div className="absolute bottom-0 left-0 w-full h-0.5" style={{ backgroundColor: isDead ? "#4b5563" : color.darker, borderRadius: "0" }} />
           </div>
         </div>
       </div>

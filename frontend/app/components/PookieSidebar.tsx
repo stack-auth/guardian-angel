@@ -167,6 +167,14 @@ function ThoughtMessage({
       statusText = `${thought.byPookieName} rejected trade`;
       statusIcon = "❌";
       break;
+    case "got-hit":
+      statusText = `Hit by ${thought.byPookieName} for ${thought.damage} damage!`;
+      statusIcon = "💥";
+      break;
+    case "hit-someone":
+      statusText = `Hit ${thought.targetPookieName} for ${thought.damage} damage!`;
+      statusIcon = "⚔️";
+      break;
     default:
       return null;
   }

@@ -204,6 +204,130 @@ body {
 }
 
 /* ========================================
+   Interacting with Facility Animation
+   ======================================== */
+
+@keyframes interactBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-2px) rotate(-3deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(-2px) rotate(3deg); }
+}
+
+@keyframes interactArms {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-1px) rotate(5deg); }
+}
+
+.animate-interacting {
+  animation: interactBob 0.6s ease-in-out infinite;
+}
+
+.animate-interacting .pixel-body {
+  animation: interactArms 0.3s ease-in-out infinite;
+}
+
+.animate-interacting .pixel-leg-left,
+.animate-interacting .pixel-leg-right {
+  animation: none;
+  transform: translateY(0) rotate(0deg);
+}
+
+/* ========================================
+   Dead/Fallen Animation
+   ======================================== */
+
+@keyframes deathFall {
+  0% { 
+    transform: rotate(0deg) translateY(0);
+    opacity: 1;
+  }
+  30% {
+    transform: rotate(15deg) translateY(-3px);
+    opacity: 1;
+  }
+  100% { 
+    transform: rotate(90deg) translateY(8px) translateX(8px);
+    opacity: 0.5;
+  }
+}
+
+@keyframes deadFloat {
+  0%, 100% { transform: rotate(90deg) translateY(8px) translateX(8px); }
+  50% { transform: rotate(90deg) translateY(6px) translateX(8px); }
+}
+
+@keyframes ghostRise {
+  0%, 100% { 
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% { 
+    opacity: 0.5;
+    transform: translateY(-3px);
+  }
+}
+
+.animate-dying {
+  animation: deathFall 0.5s ease-out forwards;
+}
+
+.animate-dead {
+  transform: rotate(90deg) translateY(8px) translateX(8px);
+  opacity: 0.5;
+  animation: deadFloat 2s ease-in-out infinite;
+}
+
+.animate-dead .pixel-leg-left,
+.animate-dead .pixel-leg-right {
+  animation: none;
+}
+
+/* Ghost effect for dead pookies */
+.dead-ghost {
+  animation: ghostRise 2s ease-in-out infinite;
+}
+
+/* ========================================
+   Hit/Damage Animation
+   ======================================== */
+
+@keyframes hitShake {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-3px); }
+  20% { transform: translateX(3px); }
+  30% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  50% { transform: translateX(-2px); }
+  60% { transform: translateX(2px); }
+  70% { transform: translateX(-1px); }
+  80% { transform: translateX(1px); }
+  90% { transform: translateX(0); }
+}
+
+@keyframes hitFlash {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(2) saturate(0); }
+}
+
+.animate-hit {
+  animation: hitShake 0.4s ease-out, hitFlash 0.2s ease-out 3;
+}
+
+/* ========================================
+   Attack Animation
+   ======================================== */
+
+@keyframes attackLunge {
+  0%, 100% { transform: translateX(0) scale(1); }
+  50% { transform: translateX(5px) scale(1.1); }
+}
+
+.animate-attacking {
+  animation: attackLunge 0.3s ease-out;
+}
+
+/* ========================================
    Thought Bubble Styles - Game Theme
    ======================================== */
 

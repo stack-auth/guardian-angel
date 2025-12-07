@@ -100,6 +100,18 @@ export type PookieThought =
       source: "trade-rejected";
       byPookieName: string;
       timestampMillis: number;
+    }
+  | {
+      source: "got-hit";
+      byPookieName: string;
+      damage: number;
+      timestampMillis: number;
+    }
+  | {
+      source: "hit-someone";
+      targetPookieName: string;
+      damage: number;
+      timestampMillis: number;
     };
 
 export type PookieAction =
@@ -132,7 +144,8 @@ export type PookieAction =
       y: number;
       facilityId: string;
       interactionName: string;
-      interactionId: string;
+      sinceTimestampMillis: number;
+      untilTimestampMillis: number;
     }
   | {
       type: "dead";
