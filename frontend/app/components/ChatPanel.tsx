@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { PixelButton } from "./PixelButton";
+import { useState, useRef, useMemo } from "react";
 import type { PookieThought } from "../types";
-import { BACKEND_URL } from "../lib/gameConfig";
+import { getBackendUrl } from "../lib/gameConfig";
 
 interface ChatPanelProps {
   worldId: string;
@@ -24,13 +23,16 @@ export function ChatPanel({
   const [isSending, setIsSending] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  // Get backend URL at runtime for mobile compatibility
+  const backendUrl = useMemo(() => getBackendUrl(), []);
+
   const sendMessage = async () => {
     if (!message.trim() || isSending) return;
 
     setIsSending(true);
     try {
       const response = await fetch(
-        `${BACKEND_URL}/worlds/${worldId}/pookies/${encodeURIComponent(pookieName)}/guardian-angel/chat`,
+        `${backendUrl}/worlds/${worldId}/pookies/${encodeURIComponent(pookieName)}/guardian-angel/chat`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -138,7 +140,7 @@ export function ChatPanel({
     return (
       <button
         onClick={onToggle}
-        className="fixed bottom-2 right-2 sm:bottom-4 sm:right-4 z-40 bg-slate-900/90 border-2 border-slate-600 px-3 py-2 text-white font-bold hover:bg-slate-800 transition-colors text-xs sm:text-sm"
+        className="fixed bottom-4 right-4 z-40 bg-slate-900/90 border-2 border-slate-600 px-4 py-3 text-white font-bold hover:bg-slate-800 active:bg-slate-700 transition-colors text-sm touch-manipulation"
       >
         💬 Chat
       </button>
@@ -155,7 +157,7 @@ export function ChatPanel({
         </div>
         <button
           onClick={onToggle}
-          className="text-slate-400 hover:text-white text-sm p-1"
+          className="text-slate-400 hover:text-white active:text-slate-200 text-lg p-2 touch-manipulation"
         >
           ✕
         </button>
@@ -195,24 +197,23 @@ export function ChatPanel({
       </div>
 
       {/* Input */}
-      <div className="border-t-2 border-slate-600 p-2 flex gap-2">
+      <div className="border-t-2 border-slate-600 p-2 sm:p-2 flex gap-2">
         <input
           type="text"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Give advice..."
-          className="flex-1 bg-slate-800 border border-slate-600 px-2 py-2 sm:py-1.5 text-white text-sm sm:text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500 rounded"
+          className="flex-1 bg-slate-800 border border-slate-600 px-3 py-3 sm:py-2 text-white text-base sm:text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500 rounded"
           disabled={isSending}
         />
-        <PixelButton
-          size="sm"
+        <button
           onClick={sendMessage}
           disabled={!message.trim() || isSending}
-          className="px-3 py-2 sm:px-2 sm:py-1"
+          className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-400 disabled:opacity-50 disabled:active:bg-emerald-600 text-white px-4 py-3 sm:px-3 sm:py-2 text-base sm:text-sm rounded font-bold touch-manipulation"
         >
-          {isSending ? "..." : "→"}
-        </PixelButton>
+          {isSending ? "..." : "Send"}
+        </button>
       </div>
     </div>
   );

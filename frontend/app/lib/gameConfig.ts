@@ -1,8 +1,33 @@
 // Game configuration and constants
 import type { CustomLevel } from "../types";
 
-export const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+// Backend URL from environment or default
+const ENV_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+
+// Helper to get the backend URL - handles mobile devices in development
+// This is called at runtime to get the correct URL based on how the client accesses the site
+export function getBackendUrl(): string {
+  // If explicitly set via environment variable, use that
+  if (ENV_BACKEND_URL) {
+    return ENV_BACKEND_URL;
+  }
+
+  // In browser, try to use the same hostname as the frontend
+  // This helps when accessing from mobile devices on the same network
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    // If accessing via IP or non-localhost hostname, use that for backend too
+    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+      return `http://${hostname}:3001`;
+    }
+  }
+
+  // Default fallback for localhost development
+  return "http://localhost:3001";
+}
+
+// For backward compatibility - but prefer using getBackendUrl() for dynamic resolution
+export const BACKEND_URL = ENV_BACKEND_URL || "http://localhost:3001";
 
 export const MAX_PLAYERS = 10;
 

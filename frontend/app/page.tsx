@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { PixelButton } from "./components/PixelButton";
 import { PixelInput } from "./components/PixelInput";
 import { PixelDialog } from "./components/PixelDialog";
 import { LevelEditor } from "./components/LevelEditor";
 import { generateGameCode, normalizeGameCode } from "./lib/gameCode";
-import { BACKEND_URL, DEFAULT_LEVEL } from "./lib/gameConfig";
+import { getBackendUrl, DEFAULT_LEVEL } from "./lib/gameConfig";
 import { getSession, saveSession, clearSession, getDeviceId, GameSession } from "./lib/session";
 import type { CustomLevel } from "./types";
 
@@ -24,6 +24,9 @@ export default function Home() {
   const [existingSession, setExistingSession] = useState<GameSession | null>(null);
   const [isValidatingSession, setIsValidatingSession] = useState(true);
 
+  // Get backend URL at runtime for mobile compatibility
+  const backendUrl = useMemo(() => getBackendUrl(), []);
+
   // Check for existing session on mount and validate it
   useEffect(() => {
     const validateSession = async () => {
@@ -35,7 +38,7 @@ export default function Home() {
 
       try {
         // Check if the world still exists
-        const response = await fetch(`${BACKEND_URL}/worlds/${session.worldId}/state`);
+        const response = await fetch(`${backendUrl}/worlds/${session.worldId}/state`);
         if (response.ok) {
           const worldState = await response.json();
           // Check if our pookie still exists in the world
@@ -58,7 +61,7 @@ export default function Home() {
     };
 
     validateSession();
-  }, []);
+  }, [backendUrl]);
 
   const createGame = useCallback(async (customLevelConfig?: CustomLevel) => {
     if (isCreating) return;
@@ -72,7 +75,7 @@ export default function Home() {
       const levelConfig = customLevelConfig || DEFAULT_LEVEL;
 
       // Create the world on the backend
-      const response = await fetch(`${BACKEND_URL}/worlds/create`, {
+      const response = await fetch(`${backendUrl}/worlds/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -87,7 +90,7 @@ export default function Home() {
       }
 
       // Join the world as the first player
-      const joinResponse = await fetch(`${BACKEND_URL}/worlds/${newGameCode}/join`, {
+      const joinResponse = await fetch(`${backendUrl}/worlds/${newGameCode}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -117,7 +120,7 @@ export default function Home() {
     } finally {
       setIsCreating(false);
     }
-  }, [isCreating, router]);
+  }, [isCreating, router, backendUrl]);
 
   const joinGame = useCallback(async () => {
     if (isJoining) return;
@@ -134,7 +137,7 @@ export default function Home() {
 
     try {
       // Check if world exists
-      const stateResponse = await fetch(`${BACKEND_URL}/worlds/${normalizedCode}/state`);
+      const stateResponse = await fetch(`${backendUrl}/worlds/${normalizedCode}/state`);
 
       if (!stateResponse.ok) {
         throw new Error("Game not found. Check the code and try again.");
@@ -149,7 +152,7 @@ export default function Home() {
       }
 
       // Join the world
-      const joinResponse = await fetch(`${BACKEND_URL}/worlds/${normalizedCode}/join`, {
+      const joinResponse = await fetch(`${backendUrl}/worlds/${normalizedCode}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -176,7 +179,7 @@ export default function Home() {
     } finally {
       setIsJoining(false);
     }
-  }, [gameCode, isJoining, router]);
+  }, [gameCode, isJoining, router, backendUrl]);
 
   const continueGame = useCallback(() => {
     if (existingSession) {

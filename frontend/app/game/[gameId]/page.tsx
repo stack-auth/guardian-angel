@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   useWorldState,
@@ -19,7 +19,7 @@ import {
   clearSession,
   getDeviceId,
 } from "../../lib/session";
-import { BACKEND_URL, DEFAULT_LEVEL } from "../../lib/gameConfig";
+import { getBackendUrl, DEFAULT_LEVEL } from "../../lib/gameConfig";
 import { getShareableGameUrl } from "../../lib/urlUtils";
 
 // Color palette for pookies
@@ -96,7 +96,7 @@ function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode,
   // Only show thoughts that are spoken loudly (source: "self" with spokenLoudly: true)
   const latestSpokenThought = [...pookie.thoughts]
     .reverse()
-    .find(t => t.source === "self" && t.spokenLoudly) || null;
+    .find((t): t is Extract<PookieThought, { source: "self" }> => t.source === "self" && t.spokenLoudly) || null;
   const showThought = latestSpokenThought && Date.now() - latestSpokenThought.timestampMillis < 5000;
 
   useEffect(() => {
@@ -393,25 +393,32 @@ export default function GamePage() {
   const [error, setError] = useState<string | null>(null);
   const [debugMode, setDebugMode] = useState(false);
 
+  // Get backend URL at runtime for mobile compatibility
+  const backendUrl = useMemo(() => getBackendUrl(), []);
+
   const { worldState, connectionStatus } = useWorldState({
     worldId: gameId,
     autoReconnect: true,
   });
 
   const speechDistance = worldState?.level.speechDistance || DEFAULT_LEVEL.speechDistance;
-  
+
   // Game world dimensions (for positioning calculations)
   const levelWidth = worldState?.level.width || DEFAULT_LEVEL.width;
   const levelHeight = worldState?.level.height || DEFAULT_LEVEL.height;
-  
+
   // Actual image dimensions in pixels
   const mapWidthPx = worldState?.level.backgroundImage.widthPx || DEFAULT_LEVEL.backgroundImage.widthPx;
   const mapHeightPx = worldState?.level.backgroundImage.heightPx || DEFAULT_LEVEL.backgroundImage.heightPx;
+
+  // Track when the session was set to avoid race conditions
+  const sessionSetTimeRef = useRef<number>(0);
 
   // Check session on mount
   useEffect(() => {
     const existingSession = getSessionForWorld(gameId);
     if (existingSession) {
+      sessionSetTimeRef.current = existingSession.joinedAt || Date.now();
       setSession({
         worldId: existingSession.worldId,
         pookieName: existingSession.pookieName,
@@ -420,12 +427,18 @@ export default function GamePage() {
   }, [gameId]);
 
   // Check if our pookie still exists in the world - if not, clear the stale session
+  // But only if the session is old enough (give time for WebSocket to sync)
   useEffect(() => {
     if (session && worldState && connectionStatus === "connected") {
       if (!worldState.pookies[session.pookieName]) {
-        // Our pookie no longer exists, clear the session
-        clearSession();
-        setSession(null);
+        // Only clear if session is older than 5 seconds (enough time for WS to sync)
+        const sessionAge = Date.now() - sessionSetTimeRef.current;
+        if (sessionAge > 5000) {
+          // Our pookie no longer exists, clear the session
+          console.log("[Session] Pookie no longer in world, clearing session");
+          clearSession();
+          setSession(null);
+        }
       }
     }
   }, [session, worldState, connectionStatus]);
@@ -437,7 +450,7 @@ export default function GamePage() {
     setError(null);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/worlds/${gameId}/join`, {
+      const response = await fetch(`${backendUrl}/worlds/${gameId}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -449,13 +462,15 @@ export default function GamePage() {
 
       const data = await response.json();
 
+      const joinedAt = Date.now();
       saveSession({
         worldId: gameId,
         pookieName: data.pookieName,
         deviceId: getDeviceId(),
-        joinedAt: Date.now(),
+        joinedAt,
       });
 
+      sessionSetTimeRef.current = joinedAt;
       setSession({
         worldId: gameId,
         pookieName: data.pookieName,
@@ -465,7 +480,7 @@ export default function GamePage() {
     } finally {
       setIsJoining(false);
     }
-  }, [gameId, isJoining]);
+  }, [gameId, isJoining, backendUrl]);
 
   const leaveGame = useCallback(() => {
     clearSession();
@@ -479,15 +494,15 @@ export default function GamePage() {
   const sendGuardianMessage = useCallback(async (message: string) => {
     if (!session) return;
     try {
-      await fetch(`${BACKEND_URL}/worlds/${gameId}/pookies/${session.pookieName}/guardian-message`, {
+      await fetch(`${backendUrl}/worlds/${gameId}/pookies/${session.pookieName}/guardian-angel/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ text: message }),
       });
     } catch (err) {
       console.error("Failed to send guardian message:", err);
     }
-  }, [gameId, session]);
+  }, [gameId, session, backendUrl]);
 
   // Check if world exists
   if (connectionStatus === "error" || (connectionStatus === "connected" && !worldState)) {
@@ -660,7 +675,7 @@ export default function GamePage() {
       </div>
 
       {/* Right Sidebar - always visible, full width on mobile */}
-      <div className="w-full md:w-80 h-full flex flex-col">
+      <div className="w-full md:w-80 h-full flex flex-col bg-slate-900">
         {/* Mobile header with game info */}
         <div 
           className="md:hidden p-3"
@@ -729,7 +744,7 @@ export default function GamePage() {
           </div>
           {error && <p className="text-xs mt-1" style={{ color: "#dc2626" }}>{error}</p>}
         </div>
-        
+
         {/* Sidebar content */}
         <div className="flex-1 overflow-hidden">
           <PookieSidebar

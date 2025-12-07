@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { WorldState, PookieAction } from "./types";
-
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
-const WS_URL = BACKEND_URL.replace(/^http/, "ws");
+import { getBackendUrl } from "./lib/gameConfig";
 
 export type ConnectionStatus =
   | "disconnected"
@@ -41,6 +38,12 @@ export function useWorldState({
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Get URLs at runtime to handle mobile devices correctly
+  const wsUrl = useMemo(() => {
+    const backendUrl = getBackendUrl();
+    return backendUrl.replace(/^http/, "ws");
+  }, []);
+
   const connect = useCallback(() => {
     // Clean up existing connection
     if (wsRef.current) {
@@ -54,7 +57,10 @@ export function useWorldState({
     setError(null);
 
     try {
-      const ws = new WebSocket(`${WS_URL}/worlds/${worldId}/state/listen`);
+      console.log(
+        `[WebSocket] Connecting to: ${wsUrl}/worlds/${worldId}/state/listen`
+      );
+      const ws = new WebSocket(`${wsUrl}/worlds/${worldId}/state/listen`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -102,7 +108,7 @@ export function useWorldState({
         reconnectTimeoutRef.current = setTimeout(connect, reconnectDelay);
       }
     }
-  }, [worldId, autoReconnect, reconnectDelay]);
+  }, [worldId, autoReconnect, reconnectDelay, wsUrl]);
 
   const reconnect = useCallback(() => {
     connect();
