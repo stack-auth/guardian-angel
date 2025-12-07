@@ -36,24 +36,40 @@ export function PixelDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-      {/* Backdrop */}
+      {/* Backdrop - warm sepia tint */}
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 backdrop-blur-sm"
+        style={{ background: "rgba(61, 40, 20, 0.8)" }}
         onClick={onClose}
       />
 
       {/* Dialog */}
       <div
-        className={`pixel-dialog relative ${maxWidth} w-full max-h-[90vh] overflow-auto bg-slate-900 border-2 sm:border-4 border-slate-600 shadow-2xl`}
+        className={`relative ${maxWidth} w-full max-h-[90vh] overflow-auto rounded-lg`}
+        style={{
+          background: "linear-gradient(180deg, #f7edd5 0%, #ebd9b4 100%)",
+          border: "4px solid #8b5e34",
+          boxShadow: "inset 0 2px 0 rgba(255,255,255,0.5), 8px 8px 0 #5c3d1e",
+        }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b-2 border-slate-600 bg-slate-800 sticky top-0">
-          <h2 className="text-white font-bold uppercase tracking-wider text-xs sm:text-sm truncate pr-2">
+        <div 
+          className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 sticky top-0"
+          style={{
+            borderBottom: "3px solid #a67c52",
+            background: "linear-gradient(180deg, #ebd9b4 0%, #d9c49a 100%)",
+          }}
+        >
+          <h2 
+            className="font-bold uppercase tracking-wider text-xs sm:text-sm truncate pr-2"
+            style={{ color: "#3d2814" }}
+          >
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors text-lg sm:text-xl leading-none p-1"
+            className="text-lg sm:text-xl leading-none p-1 rounded transition-colors"
+            style={{ color: "#8b5e34" }}
           >
             ✕
           </button>

@@ -198,39 +198,61 @@ export default function Home() {
         backgroundPosition: "center",
       }}
     >
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/60" />
+      {/* Overlay - warm sepia tint */}
+      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(92, 61, 30, 0.7) 0%, rgba(61, 40, 20, 0.8) 100%)" }} />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center gap-8 max-w-md w-full">
         {/* Logo/Title */}
         <div className="text-center">
-          <h1 className="text-5xl font-bold text-white mb-2 pixel-text drop-shadow-lg">
+          <h1 
+            className="text-5xl font-bold mb-2 pixel-text drop-shadow-lg"
+            style={{ 
+              color: "#f7edd5",
+              textShadow: "3px 3px 0 #5c3d1e, -1px -1px 0 #3d2814",
+            }}
+          >
             POOKIEVERSE
           </h1>
-          <p className="text-slate-300 text-sm">
+          <p style={{ color: "#d9c49a" }}>
             Guide in need is a guide indeed
           </p>
         </div>
 
         {/* Main Menu Card */}
-        <div className="w-full bg-slate-900/90 border-4 border-slate-600 p-6 space-y-4">
+        <div 
+          className="w-full p-6 space-y-4"
+          style={{
+            background: "linear-gradient(180deg, #f7edd5 0%, #ebd9b4 100%)",
+            border: "4px solid #8b5e34",
+            borderRadius: "8px",
+            boxShadow: "inset 0 2px 0 rgba(255,255,255,0.5), 6px 6px 0 #5c3d1e",
+          }}
+        >
           {/* Loading Session */}
           {isValidatingSession && (
             <div className="text-center py-2">
-              <p className="text-slate-400 text-sm">Checking for existing game...</p>
+              <p style={{ color: "#8b7355" }}>Checking for existing game...</p>
             </div>
           )}
 
           {/* Existing Session Banner */}
           {!isValidatingSession && existingSession && (
-            <div className="bg-emerald-900/50 border-2 border-emerald-600 p-4 mb-4">
-              <p className="text-emerald-300 text-sm mb-2">
+            <div 
+              className="p-4 mb-4"
+              style={{
+                background: "linear-gradient(180deg, #7cb587 0%, #4a8c59 100%)",
+                border: "3px solid #2d6b3d",
+                borderRadius: "4px",
+                boxShadow: "3px 3px 0 #1a4a28",
+              }}
+            >
+              <p className="mb-2" style={{ color: "#f7edd5" }}>
                 <span className="font-bold">Active Game Found!</span>
               </p>
-              <p className="text-slate-300 text-xs mb-3">
-                You&apos;re playing as <span className="text-emerald-400 font-bold">{existingSession.pookieName}</span> in{" "}
-                <span className="text-emerald-400 font-mono">{existingSession.worldId}</span>
+              <p className="text-sm mb-3" style={{ color: "#d9f7de" }}>
+                You&apos;re playing as <span className="font-bold" style={{ color: "#fef9e7" }}>{existingSession.pookieName}</span> in{" "}
+                <span style={{ color: "#fef9e7" }}>{existingSession.worldId}</span>
               </p>
               <div className="flex gap-2">
                 <PixelButton size="sm" onClick={continueGame} className="flex-1">
@@ -271,9 +293,9 @@ export default function Home() {
 
           {/* Divider */}
           <div className="flex items-center gap-4">
-            <div className="flex-1 h-px bg-slate-600" />
-            <span className="text-slate-500 text-xs uppercase">or</span>
-            <div className="flex-1 h-px bg-slate-600" />
+            <div className="flex-1 h-px" style={{ background: "#a67c52" }} />
+            <span className="text-xs uppercase" style={{ color: "#8b7355" }}>or</span>
+            <div className="flex-1 h-px" style={{ background: "#a67c52" }} />
           </div>
 
           {/* Join Game Button */}
@@ -289,14 +311,24 @@ export default function Home() {
 
           {/* Error Display */}
           {error && (
-            <div className="bg-red-900/50 border border-red-600 p-3 rounded">
-              <p className="text-red-300 text-xs">{error}</p>
+            <div 
+              className="p-3 rounded"
+              style={{
+                background: "#fecaca",
+                border: "2px solid #dc2626",
+                color: "#991b1b",
+              }}
+            >
+              <p className="text-xs">{error}</p>
             </div>
           )}
         </div>
 
         {/* Instructions */}
-        <div className="text-center text-slate-400 text-xs space-y-1">
+        <div 
+          className="text-center text-sm space-y-1"
+          style={{ color: "#ebd9b4" }}
+        >
           <p>🪽 You are the Guardian Angel</p>
           <p>👾 Your Pookie will explore and make decisions</p>
           <p>💬 Guide them with your wisdom</p>
@@ -314,7 +346,7 @@ export default function Home() {
         title="Join Game"
       >
         <div className="space-y-4">
-          <p className="text-slate-400 text-xs">
+          <p className="text-sm" style={{ color: "#5c4a32" }}>
             Enter the game code shared by the game creator.
           </p>
 
@@ -366,7 +398,7 @@ export default function Home() {
         title="Custom Level"
       >
         <div className="space-y-4">
-          <p className="text-slate-400 text-xs">
+          <p className="text-sm" style={{ color: "#5c4a32" }}>
             Paste an image URL to use as a custom background for your game world.
           </p>
 
@@ -389,9 +421,18 @@ export default function Home() {
 
           {/* Preview */}
           {customBackgroundUrl.trim() && (
-            <div className="border-2 border-slate-600 p-2 bg-slate-800">
-              <p className="text-slate-400 text-xs mb-2">Preview:</p>
-              <div className="relative w-full h-32 bg-slate-900 overflow-hidden">
+            <div 
+              className="p-2 rounded"
+              style={{ 
+                border: "2px solid #8b5e34",
+                background: "#d9c49a",
+              }}
+            >
+              <p className="text-xs mb-2" style={{ color: "#5c4a32" }}>Preview:</p>
+              <div 
+                className="relative w-full h-32 overflow-hidden rounded"
+                style={{ background: "#c4a86e" }}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={customBackgroundUrl}

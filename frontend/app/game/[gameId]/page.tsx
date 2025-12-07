@@ -338,10 +338,19 @@ function DebugPanel({
   const facilityCount = worldState ? Object.keys(worldState.level.facilities).length : 0;
 
   return (
-    <div className="absolute top-12 right-2 z-40 bg-slate-900/95 border border-slate-600 p-2 text-xs font-mono max-w-64 max-h-80 overflow-auto scrollbar-thin">
-      <div className="text-emerald-400 font-bold mb-1">Debug Info</div>
-      <div className="space-y-1 text-slate-300">
-        <div>Connection: <span className={connectionStatus === "connected" ? "text-green-400" : "text-yellow-400"}>{connectionStatus}</span></div>
+    <div 
+      className="absolute top-12 right-2 z-40 p-2 text-xs max-w-64 max-h-80 overflow-auto scrollbar-thin"
+      style={{
+        background: "linear-gradient(180deg, #f7edd5 0%, #ebd9b4 100%)",
+        border: "3px solid #8b5e34",
+        borderRadius: "4px",
+        boxShadow: "3px 3px 0 #5c3d1e",
+        color: "#3d2814",
+      }}
+    >
+      <div className="font-bold mb-1" style={{ color: "#4a8c59" }}>Debug Info</div>
+      <div className="space-y-1" style={{ color: "#5c4a32" }}>
+        <div>Connection: <span style={{ color: connectionStatus === "connected" ? "#16a34a" : "#d97706" }}>{connectionStatus}</span></div>
         <div>Pookies: {pookieCount}</div>
         <div>Facilities: {facilityCount}</div>
         {worldState && (
@@ -349,18 +358,18 @@ function DebugPanel({
             <div>Speech Distance: {worldState.level.speechDistance} units</div>
             <div>Facility Distance: {worldState.level.facilityInteractionDistance} units</div>
             <div>Map Size: {worldState.level.width}x{worldState.level.height}</div>
-            <div className="border-t border-slate-600 mt-1 pt-1">
-              <div className="text-amber-400">Pookie States:</div>
+            <div className="mt-1 pt-1" style={{ borderTop: "1px solid #a67c52" }}>
+              <div style={{ color: "#d4914d" }}>Pookie States:</div>
               {Object.entries(worldState.pookies).map(([name, p]) => (
-                <div key={name} className="text-slate-400 truncate">
+                <div key={name} className="truncate" style={{ color: "#8b7355" }}>
                   {name}: {p.currentAction.type}
                 </div>
               ))}
             </div>
-            <div className="border-t border-slate-600 mt-1 pt-1">
-              <div className="text-cyan-400">Facilities:</div>
+            <div className="mt-1 pt-1" style={{ borderTop: "1px solid #a67c52" }}>
+              <div style={{ color: "#4a8c59" }}>Facilities:</div>
               {Object.entries(worldState.level.facilities).map(([id, f]) => (
-                <div key={id} className="text-slate-400 truncate">
+                <div key={id} className="truncate" style={{ color: "#8b7355" }}>
                   {f.displayName} ({f.x}, {f.y})
                 </div>
               ))}
@@ -483,11 +492,11 @@ export default function GamePage() {
   // Check if world exists
   if (connectionStatus === "error" || (connectionStatus === "connected" && !worldState)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
-        <div className="bg-slate-800 border-4 border-slate-600 p-6 sm:p-8 text-center max-w-md w-full">
-          <h1 className="text-xl sm:text-2xl font-bold text-white mb-4">Game Not Found</h1>
-          <p className="text-slate-400 mb-6 text-sm sm:text-base">
-            The game <span className="text-emerald-400 font-mono">{gameId}</span> doesn&apos;t exist or has ended.
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "linear-gradient(180deg, #d9c49a 0%, #c4a86e 100%)" }}>
+        <div className="game-panel p-6 sm:p-8 text-center max-w-md w-full">
+          <h1 className="text-xl sm:text-2xl font-bold mb-4" style={{ color: "#3d2814" }}>Game Not Found</h1>
+          <p className="mb-6 text-sm sm:text-base" style={{ color: "#5c4a32" }}>
+            The game <span style={{ color: "#4a8c59" }}>{gameId}</span> doesn&apos;t exist or has ended.
           </p>
           <PixelButton onClick={() => router.push("/")}>
             Back to Home
@@ -498,7 +507,7 @@ export default function GamePage() {
   }
 
   return (
-    <div className="h-screen w-full flex overflow-hidden" style={{ backgroundColor: "#1a1a2e" }}>
+    <div className="h-screen w-full flex overflow-hidden" style={{ background: "linear-gradient(180deg, #c4a86e 0%, #a67c52 100%)" }}>
       {/* Map Section - hidden on mobile, flex-1 on desktop */}
       <div className="hidden md:flex flex-1 items-center justify-center relative overflow-hidden">
         {/* Map container - maintains aspect ratio and fits within available space */}
@@ -511,6 +520,9 @@ export default function GamePage() {
             backgroundSize: "100% 100%",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
+            border: "4px solid #5c3d1e",
+            boxShadow: "0 0 0 2px #8b5e34, 8px 8px 0 rgba(0,0,0,0.3)",
+            borderRadius: "4px",
           }}
         >
           {/* Render all pookies - positioned relative to the map container */}
@@ -532,19 +544,28 @@ export default function GamePage() {
         {/* Map UI Overlays */}
         {/* Top Left - Compact Game Info & Controls */}
         <div className="absolute top-2 left-4 z-30">
-          <div className="bg-slate-900/90 border border-slate-600 px-3 py-2 text-sm">
+          <div 
+            className="px-3 py-2 text-sm"
+            style={{
+              background: "linear-gradient(180deg, #f7edd5 0%, #ebd9b4 100%)",
+              border: "3px solid #8b5e34",
+              borderRadius: "4px",
+              boxShadow: "3px 3px 0 #5c3d1e",
+            }}
+          >
             {/* Game ID & Status - Single Row */}
             <div className="flex items-center gap-2 mb-1">
               <span
-                className={`w-1.5 h-1.5 rounded-full shrink-0 ${connectionStatus === "connected"
-                  ? "bg-emerald-500"
+                className={`w-2 h-2 rounded-full shrink-0 ${connectionStatus === "connected"
+                  ? "bg-green-500"
                   : connectionStatus === "connecting"
                     ? "bg-yellow-500 animate-pulse"
                     : "bg-red-500"
                   }`}
+                style={{ border: "1px solid #5c3d1e" }}
               />
-              <span className="text-white font-bold font-mono truncate">{gameId}</span>
-              <span className="text-slate-500 text-xs">
+              <span className="font-bold truncate" style={{ color: "#3d2814" }}>{gameId}</span>
+              <span className="text-xs" style={{ color: "#8b7355" }}>
                 {worldState ? Object.keys(worldState.pookies).length : 0}/{worldState?.level.maxPookies || 10}
               </span>
             </div>
@@ -552,26 +573,41 @@ export default function GamePage() {
             {/* Session Info */}
             {session ? (
               <div className="space-y-1.5">
-                <div className="text-emerald-300 text-xs truncate">
+                <div className="text-xs truncate" style={{ color: "#4a8c59" }}>
                   🪽 {session.pookieName}
-                  {!myPookie && <span className="text-slate-500 ml-1">(loading...)</span>}
+                  {!myPookie && <span style={{ color: "#8b7355" }} className="ml-1">(loading...)</span>}
                 </div>
                 <div className="flex flex-wrap gap-1">
                   <button
                     onClick={() => setShowQRDialog(true)}
-                    className="bg-slate-700 hover:bg-slate-600 text-white px-2 py-0.5 text-xs rounded"
+                    className="px-2 py-0.5 text-xs rounded"
+                    style={{
+                      background: "#d9c49a",
+                      border: "2px solid #8b5e34",
+                      color: "#3d2814",
+                    }}
                   >
                     📱
                   </button>
                   <button
                     onClick={() => setShowSystemPrompt(true)}
-                    className="bg-slate-700 hover:bg-slate-600 text-white px-2 py-0.5 text-xs rounded"
+                    className="px-2 py-0.5 text-xs rounded"
+                    style={{
+                      background: "#d9c49a",
+                      border: "2px solid #8b5e34",
+                      color: "#3d2814",
+                    }}
                   >
                     🧠
                   </button>
                   <button
                     onClick={leaveGame}
-                    className="bg-red-900/50 hover:bg-red-800 text-red-300 px-2 py-0.5 text-xs rounded"
+                    className="px-2 py-0.5 text-xs rounded"
+                    style={{
+                      background: "#dc2626",
+                      border: "2px solid #991b1b",
+                      color: "white",
+                    }}
                   >
                     Exit
                   </button>
@@ -579,11 +615,17 @@ export default function GamePage() {
               </div>
             ) : (
               <div className="space-y-1">
-                {error && <p className="text-red-400 text-xs">{error}</p>}
+                {error && <p className="text-xs" style={{ color: "#dc2626" }}>{error}</p>}
                 <button
                   onClick={joinGame}
                   disabled={isJoining || connectionStatus !== "connected"}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-2 py-1 text-xs rounded font-bold"
+                  className="w-full px-2 py-1 text-xs rounded font-bold disabled:opacity-50"
+                  style={{
+                    background: "linear-gradient(180deg, #7cb587 0%, #4a8c59 100%)",
+                    border: "2px solid #2d6b3d",
+                    color: "white",
+                    boxShadow: "2px 2px 0 #1a4a28",
+                  }}
                 >
                   {isJoining ? "..." : "🪽 Join"}
                 </button>
@@ -596,10 +638,13 @@ export default function GamePage() {
         <div className="absolute top-2 right-4 z-30">
           <button
             onClick={() => setDebugMode(!debugMode)}
-            className={`px-2 py-1 text-xs rounded border ${debugMode
-              ? "bg-amber-900/90 border-amber-600 text-amber-300"
-              : "bg-slate-900/90 border-slate-600 text-slate-400 hover:text-white"
-              }`}
+            className="px-2 py-1 text-xs rounded"
+            style={{
+              background: debugMode ? "#d4914d" : "#d9c49a",
+              border: `2px solid ${debugMode ? "#b5702d" : "#8b5e34"}`,
+              color: debugMode ? "white" : "#3d2814",
+              boxShadow: "2px 2px 0 #5c3d1e",
+            }}
             title="Toggle Debug Mode"
           >
             🐛
@@ -617,19 +662,26 @@ export default function GamePage() {
       {/* Right Sidebar - always visible, full width on mobile */}
       <div className="w-full md:w-80 h-full flex flex-col">
         {/* Mobile header with game info */}
-        <div className="md:hidden p-3 border-b border-slate-700 bg-slate-900">
+        <div 
+          className="md:hidden p-3"
+          style={{
+            background: "linear-gradient(180deg, #ebd9b4 0%, #d9c49a 100%)",
+            borderBottom: "3px solid #8b5e34",
+          }}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span
                 className={`w-2 h-2 rounded-full ${connectionStatus === "connected"
-                  ? "bg-emerald-500"
+                  ? "bg-green-500"
                   : connectionStatus === "connecting"
                     ? "bg-yellow-500 animate-pulse"
                     : "bg-red-500"
                   }`}
+                style={{ border: "1px solid #5c3d1e" }}
               />
-              <span className="text-white font-bold font-mono text-sm">{gameId}</span>
-              <span className="text-slate-500 text-xs">
+              <span className="font-bold text-sm" style={{ color: "#3d2814" }}>{gameId}</span>
+              <span className="text-xs" style={{ color: "#8b7355" }}>
                 {worldState ? Object.keys(worldState.pookies).length : 0}/{worldState?.level.maxPookies || 10}
               </span>
             </div>
@@ -638,13 +690,23 @@ export default function GamePage() {
                 <>
                   <button
                     onClick={() => setShowQRDialog(true)}
-                    className="bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 text-xs rounded"
+                    className="px-2 py-1 text-xs rounded"
+                    style={{
+                      background: "#f7edd5",
+                      border: "2px solid #8b5e34",
+                      color: "#3d2814",
+                    }}
                   >
                     📱
                   </button>
                   <button
                     onClick={leaveGame}
-                    className="bg-red-900/50 hover:bg-red-800 text-red-300 px-2 py-1 text-xs rounded"
+                    className="px-2 py-1 text-xs rounded"
+                    style={{
+                      background: "#dc2626",
+                      border: "2px solid #991b1b",
+                      color: "white",
+                    }}
                   >
                     Exit
                   </button>
@@ -653,14 +715,19 @@ export default function GamePage() {
                 <button
                   onClick={joinGame}
                   disabled={isJoining || connectionStatus !== "connected"}
-                  className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-3 py-1 text-xs rounded font-bold"
+                  className="px-3 py-1 text-xs rounded font-bold disabled:opacity-50"
+                  style={{
+                    background: "linear-gradient(180deg, #7cb587 0%, #4a8c59 100%)",
+                    border: "2px solid #2d6b3d",
+                    color: "white",
+                  }}
                 >
                   {isJoining ? "..." : "🪽 Join"}
                 </button>
               )}
             </div>
           </div>
-          {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+          {error && <p className="text-xs mt-1" style={{ color: "#dc2626" }}>{error}</p>}
         </div>
         
         {/* Sidebar content */}

@@ -74,15 +74,17 @@ function ThoughtMessage({
       <div className="flex justify-end mb-1">
         <div className="max-w-[85%]">
           <div 
-            className="px-2 py-1 rounded-lg rounded-br-sm text-[11px] leading-tight"
+            className="px-2 py-1 rounded text-[13px] leading-tight"
             style={{
-              backgroundColor: "#fef3c7",
+              backgroundColor: "#fef9e7",
               color: "#92400e",
+              border: "2px solid #d4914d",
+              boxShadow: "2px 2px 0 #b5702d",
             }}
           >
             {thought.text}
           </div>
-          <div className="text-[9px] text-slate-500 text-right mt-0.5">
+          <div className="text-[11px] text-right mt-0.5" style={{ color: "#8b7355" }}>
             🪽 {formatTime(thought.timestampMillis)}
           </div>
         </div>
@@ -97,16 +99,17 @@ function ThoughtMessage({
       <div className="flex justify-start mb-1">
         <div className="max-w-[85%]">
           <div 
-            className="px-2 py-1 rounded-lg rounded-bl-sm text-[11px] leading-tight"
+            className="px-2 py-1 rounded text-[13px] leading-tight"
             style={{
               backgroundColor: isSpoken ? pookieColor.base : pookieColor.light,
               color: isSpoken ? "white" : pookieColor.border,
-              border: isSpoken ? "none" : `1px dashed ${pookieColor.dark}`,
+              border: `2px ${isSpoken ? "solid" : "dashed"} ${pookieColor.dark}`,
+              boxShadow: isSpoken ? `2px 2px 0 ${pookieColor.darker}` : "none",
             }}
           >
             {isSpoken ? "🗣️ " : "💭 "}{thought.text}
           </div>
-          <div className="text-[9px] text-slate-500 mt-0.5">
+          <div className="text-[11px] mt-0.5" style={{ color: "#8b7355" }}>
             {isSpoken ? "said" : "thought"} · {formatTime(thought.timestampMillis)}
           </div>
         </div>
@@ -122,14 +125,16 @@ function ThoughtMessage({
         <MiniPookie name={thought.sayerPookieName} size={18} />
         <div className="max-w-[75%]">
           <div 
-            className="px-2 py-1 rounded-lg rounded-bl-sm text-[11px] leading-tight text-white"
+            className="px-2 py-1 rounded text-[13px] leading-tight text-white"
             style={{
               backgroundColor: sayerColor.base,
+              border: `2px solid ${sayerColor.dark}`,
+              boxShadow: `2px 2px 0 ${sayerColor.darker}`,
             }}
           >
             {thought.text}
           </div>
-          <div className="text-[9px] text-slate-500 mt-0.5">
+          <div className="text-[11px] mt-0.5" style={{ color: "#8b7355" }}>
             {thought.sayerPookieName} · {formatTime(thought.timestampMillis)}
           </div>
         </div>
@@ -168,7 +173,14 @@ function ThoughtMessage({
   
   return (
     <div className="flex justify-center mb-1">
-      <div className="text-[9px] text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded-full">
+      <div 
+        className="text-[11px] px-2 py-0.5 rounded-full"
+        style={{ 
+          backgroundColor: "#d9c49a",
+          color: "#5c4a32",
+          border: "1px solid #a67c52",
+        }}
+      >
         {statusIcon} {statusText}
       </div>
     </div>
@@ -205,13 +217,32 @@ export function PookieSidebar({ worldState, session, onSendMessage }: PookieSide
   };
   
   return (
-    <div className="h-full flex flex-col bg-slate-900 border-l border-slate-700">
+    <div 
+      className="h-full flex flex-col"
+      style={{
+        background: "linear-gradient(180deg, #f7edd5 0%, #ebd9b4 100%)",
+        borderLeft: "3px solid #8b5e34",
+        boxShadow: "inset 2px 0 0 rgba(255,255,255,0.3)",
+      }}
+    >
       {/* Header with dropdown */}
-      <div className="px-2 py-1.5 border-b border-slate-700">
+      <div 
+        className="px-2 py-1.5"
+        style={{ 
+          borderBottom: "2px solid #a67c52",
+          background: "linear-gradient(180deg, #ebd9b4 0%, #d9c49a 100%)",
+        }}
+      >
         <select
           value={effectiveSelectedPookie || ""}
           onChange={(e) => setSelectedPookie(e.target.value || null)}
-          className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500"
+          className="w-full rounded px-2 py-1 text-[14px] focus:outline-none"
+          style={{
+            background: "#f7edd5",
+            border: "2px solid #8b5e34",
+            color: "#3d2814",
+            boxShadow: "inset 1px 1px 0 #d9c49a, 2px 2px 0 #5c3d1e",
+          }}
         >
           {pookieNames.length === 0 && (
             <option value="">No pookies yet...</option>
@@ -229,16 +260,19 @@ export function PookieSidebar({ worldState, session, onSendMessage }: PookieSide
       {selectedPookieData && (
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Basic Info Section */}
-          <div className="px-2 py-2 border-b border-slate-700 space-y-2">
+          <div 
+            className="px-2 py-2 space-y-2"
+            style={{ borderBottom: "2px solid #a67c52" }}
+          >
             {/* Avatar and name */}
             <div className="flex items-center gap-2">
               <MiniPookie name={effectiveSelectedPookie!} size={28} />
               <div className="min-w-0 flex-1">
-                <div className="text-white text-xs font-medium flex items-center gap-1 truncate">
-                  {isOwnPookie && <span className="text-emerald-400">🪽</span>}
+                <div className="text-[14px] font-medium flex items-center gap-1 truncate" style={{ color: "#3d2814" }}>
+                  {isOwnPookie && <span style={{ color: "#4a8c59" }}>🪽</span>}
                   {effectiveSelectedPookie}
                 </div>
-                <div className="text-[10px] text-slate-400">
+                <div className="text-[12px]" style={{ color: "#8b7355" }}>
                   {selectedPookieData.currentAction.type}
                 </div>
               </div>
@@ -247,30 +281,57 @@ export function PookieSidebar({ worldState, session, onSendMessage }: PookieSide
             {/* Health and Food bars */}
             <div className="space-y-1">
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-slate-400 w-8">❤️</span>
-                <div className="flex-1 h-1.5 bg-slate-700 rounded overflow-hidden">
+                <span className="text-[12px] w-8" style={{ color: "#5c4a32" }}>❤️</span>
+                <div 
+                  className="flex-1 h-2 rounded overflow-hidden"
+                  style={{ 
+                    background: "#d9c49a",
+                    border: "1px solid #8b5e34",
+                    boxShadow: "inset 1px 1px 0 rgba(0,0,0,0.1)",
+                  }}
+                >
                   <div 
-                    className="h-full bg-red-500 transition-all" 
-                    style={{ width: `${selectedPookieData.health}%` }} 
+                    className="h-full transition-all" 
+                    style={{ 
+                      width: `${selectedPookieData.health}%`,
+                      background: "linear-gradient(180deg, #ef4444 0%, #dc2626 100%)",
+                    }} 
                   />
                 </div>
-                <span className="text-[10px] text-slate-500 w-6 text-right">{selectedPookieData.health}</span>
+                <span className="text-[12px] w-6 text-right" style={{ color: "#8b7355" }}>{selectedPookieData.health}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-slate-400 w-8">🍖</span>
-                <div className="flex-1 h-1.5 bg-slate-700 rounded overflow-hidden">
+                <span className="text-[12px] w-8" style={{ color: "#5c4a32" }}>🍖</span>
+                <div 
+                  className="flex-1 h-2 rounded overflow-hidden"
+                  style={{ 
+                    background: "#d9c49a",
+                    border: "1px solid #8b5e34",
+                    boxShadow: "inset 1px 1px 0 rgba(0,0,0,0.1)",
+                  }}
+                >
                   <div 
-                    className="h-full bg-yellow-500 transition-all" 
-                    style={{ width: `${selectedPookieData.food}%` }} 
+                    className="h-full transition-all" 
+                    style={{ 
+                      width: `${selectedPookieData.food}%`,
+                      background: "linear-gradient(180deg, #f59e0b 0%, #d97706 100%)",
+                    }} 
                   />
                 </div>
-                <span className="text-[10px] text-slate-500 w-6 text-right">{selectedPookieData.food}</span>
+                <span className="text-[12px] w-6 text-right" style={{ color: "#8b7355" }}>{selectedPookieData.food}</span>
               </div>
             </div>
             
             {/* Personality */}
             <div>
-              <div className="text-[10px] text-slate-300 bg-slate-800 rounded px-1.5 py-1 line-clamp-2 leading-tight">
+              <div 
+                className="text-[12px] rounded px-1.5 py-1 line-clamp-2 leading-tight"
+                style={{
+                  background: "#f7edd5",
+                  color: "#5c4a32",
+                  border: "1px solid #a67c52",
+                }}
+              >
                 {selectedPookieData.personality || "No personality"}
               </div>
             </div>
@@ -281,7 +342,12 @@ export function PookieSidebar({ worldState, session, onSendMessage }: PookieSide
                 {selectedPookieData.inventory.map((item) => (
                   <span 
                     key={item.id} 
-                    className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-300"
+                    className="text-[12px] px-1.5 py-0.5 rounded"
+                    style={{
+                      background: "#d9c49a",
+                      color: "#3d2814",
+                      border: "1px solid #8b5e34",
+                    }}
                   >
                     {item.amount}× {item.id}
                   </span>
@@ -293,16 +359,25 @@ export function PookieSidebar({ worldState, session, onSendMessage }: PookieSide
           {/* Thoughts Section - only visible to owner or world creator */}
           {canSeeThoughts ? (
             <>
-              <div className="px-2 py-1 border-b border-slate-700 bg-slate-800/50">
-                <div className="text-[10px] text-slate-400 flex items-center gap-1">
+              <div 
+                className="px-2 py-1"
+                style={{ 
+                  borderBottom: "2px solid #a67c52",
+                  background: "#d9c49a",
+                }}
+              >
+                <div className="text-[12px] flex items-center gap-1" style={{ color: "#5c4a32" }}>
                   💭 Thoughts
-                  {!isOwnPookie && <span className="text-amber-400">(creator view)</span>}
+                  {!isOwnPookie && <span style={{ color: "#d4914d" }}>(creator view)</span>}
                 </div>
               </div>
               
-              <div className="flex-1 overflow-y-auto px-2 py-1.5 scrollbar-thin">
+              <div 
+                className="flex-1 overflow-y-auto px-2 py-1.5 scrollbar-thin"
+                style={{ background: "#f7edd5" }}
+              >
                 {selectedPookieData.thoughts.length === 0 ? (
-                  <div className="text-center text-slate-500 text-[10px] py-4">
+                  <div className="text-center text-[12px] py-4" style={{ color: "#8b7355" }}>
                     No thoughts yet...
                   </div>
                 ) : (
@@ -320,7 +395,13 @@ export function PookieSidebar({ worldState, session, onSendMessage }: PookieSide
               
               {/* Message input - only for own pookie */}
               {isOwnPookie && onSendMessage && (
-                <div className="px-2 py-1.5 border-t border-slate-700">
+                <div 
+                  className="px-2 py-1.5"
+                  style={{ 
+                    borderTop: "2px solid #a67c52",
+                    background: "#d9c49a",
+                  }}
+                >
                   <div className="flex gap-1.5">
                     <input
                       type="text"
@@ -328,12 +409,25 @@ export function PookieSidebar({ worldState, session, onSendMessage }: PookieSide
                       onChange={(e) => setMessageInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                       placeholder="Message as Guardian Angel..."
-                      className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-[11px] text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                      className="flex-1 rounded px-2 py-1 text-[13px] focus:outline-none"
+                      style={{
+                        background: "#f7edd5",
+                        border: "2px solid #8b5e34",
+                        color: "#3d2814",
+                        boxShadow: "inset 1px 1px 0 #d9c49a",
+                      }}
                     />
                     <button
                       onClick={handleSendMessage}
                       disabled={!messageInput.trim()}
-                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed px-2 py-1 rounded text-white text-xs"
+                      className="px-2 py-1 rounded text-[13px] disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        background: "linear-gradient(180deg, #7cb587 0%, #4a8c59 100%)",
+                        border: "2px solid #2d6b3d",
+                        color: "white",
+                        boxShadow: "2px 2px 0 #1a4a28",
+                        textShadow: "1px 1px 0 #2d6b3d",
+                      }}
                     >
                       🪽
                     </button>
@@ -342,8 +436,11 @@ export function PookieSidebar({ worldState, session, onSendMessage }: PookieSide
               )}
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center p-2">
-              <div className="text-center text-slate-500 text-[10px]">
+            <div 
+              className="flex-1 flex items-center justify-center p-2"
+              style={{ background: "#f7edd5" }}
+            >
+              <div className="text-center text-[12px]" style={{ color: "#8b7355" }}>
                 <div className="text-lg mb-1">🔒</div>
                 <p>Private thoughts</p>
               </div>
@@ -354,8 +451,11 @@ export function PookieSidebar({ worldState, session, onSendMessage }: PookieSide
       
       {/* Empty state */}
       {!selectedPookieData && (
-        <div className="flex-1 flex items-center justify-center p-2">
-          <div className="text-center text-slate-500 text-[10px]">
+        <div 
+          className="flex-1 flex items-center justify-center p-2"
+          style={{ background: "#f7edd5" }}
+        >
+          <div className="text-center text-[12px]" style={{ color: "#8b7355" }}>
             <div className="text-lg mb-1">👻</div>
             <p>No pookie selected</p>
           </div>
