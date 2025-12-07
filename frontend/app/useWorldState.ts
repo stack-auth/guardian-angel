@@ -14,6 +14,8 @@ export interface UseWorldStateOptions {
   worldId: string;
   autoReconnect?: boolean;
   reconnectDelay?: number;
+  /** Whether to connect to the WebSocket. Defaults to true. Set to false to delay connection. */
+  enabled?: boolean;
 }
 
 export interface UseWorldStateReturn {
@@ -30,6 +32,7 @@ export function useWorldState({
   worldId,
   autoReconnect = true,
   reconnectDelay = 3000,
+  enabled = true,
 }: UseWorldStateOptions): UseWorldStateReturn {
   const [worldState, setWorldState] = useState<WorldState | null>(null);
   const [connectionStatus, setConnectionStatus] =
@@ -115,6 +118,18 @@ export function useWorldState({
   }, [connect]);
 
   useEffect(() => {
+    if (!enabled) {
+      // If disabled, close any existing connection
+      if (wsRef.current) {
+        wsRef.current.close(1000, "Connection disabled");
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      setConnectionStatus("disconnected");
+      return;
+    }
+
     connect();
 
     return () => {
@@ -125,7 +140,7 @@ export function useWorldState({
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [connect]);
+  }, [connect, enabled]);
 
   return {
     worldState,

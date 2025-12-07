@@ -556,13 +556,17 @@ export default function GamePage() {
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debugMode, setDebugMode] = useState(false);
+  // Track if user has initiated joining (clicked join or has existing session)
+  const [hasInitiatedJoin, setHasInitiatedJoin] = useState(false);
 
   // Get backend URL at runtime for mobile compatibility
   const backendUrl = useMemo(() => getBackendUrl(), []);
 
+  // Only connect to WebSocket after user has initiated joining
   const { worldState, connectionStatus } = useWorldState({
     worldId: gameId,
     autoReconnect: true,
+    enabled: hasInitiatedJoin,
   });
 
   const speechDistance = worldState?.level.speechDistance || DEFAULT_LEVEL.speechDistance;
@@ -587,6 +591,8 @@ export default function GamePage() {
         worldId: existingSession.worldId,
         pookieName: existingSession.pookieName,
       });
+      // Enable WebSocket for existing session
+      setHasInitiatedJoin(true);
     }
   }, [gameId]);
 
@@ -639,8 +645,12 @@ export default function GamePage() {
         worldId: gameId,
         pookieName: data.pookieName,
       });
+      
+      // Only enable WebSocket connection after successful join
+      setHasInitiatedJoin(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join game");
+      // Don't enable WebSocket on error (e.g., game full)
     } finally {
       setIsJoining(false);
     }
@@ -668,8 +678,8 @@ export default function GamePage() {
     }
   }, [gameId, session, backendUrl]);
 
-  // Check if world exists
-  if (connectionStatus === "error" || (connectionStatus === "connected" && !worldState)) {
+  // Check if world exists (only if we've connected)
+  if (hasInitiatedJoin && (connectionStatus === "error" || (connectionStatus === "connected" && !worldState))) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "linear-gradient(180deg, #d9c49a 0%, #c4a86e 100%)" }}>
         <div className="game-panel p-6 sm:p-8 text-center max-w-md w-full">
@@ -680,6 +690,121 @@ export default function GamePage() {
           <PixelButton onClick={() => router.push("/")}>
             Back to Home
           </PixelButton>
+        </div>
+      </div>
+    );
+  }
+
+  // Full-screen join overlay - shown before WebSocket connection
+  if (!hasInitiatedJoin) {
+    return (
+      <div 
+        className="min-h-screen flex flex-col items-center justify-center p-6"
+        style={{ 
+          background: "linear-gradient(180deg, #f7edd5 0%, #d9c49a 50%, #c4a86e 100%)",
+        }}
+      >
+        {/* Decorative elements */}
+        <div 
+          className="absolute inset-0 pointer-events-none opacity-20"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%238b5e34' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          }}
+        />
+        
+        {/* Main content */}
+        <div 
+          className="relative z-10 text-center max-w-lg w-full"
+          style={{
+            background: "linear-gradient(180deg, #f7edd5 0%, #ebd9b4 100%)",
+            border: "6px solid #8b5e34",
+            borderRadius: "12px",
+            boxShadow: "8px 8px 0 #5c3d1e, 0 0 40px rgba(139, 94, 52, 0.3)",
+            padding: "3rem 2rem",
+          }}
+        >
+          {/* Angel wings decoration */}
+          <div className="text-6xl mb-4 animate-pulse">🪽</div>
+          
+          <h1 
+            className="text-3xl sm:text-4xl font-bold mb-3"
+            style={{ 
+              color: "#3d2814",
+              textShadow: "2px 2px 0 #d9c49a",
+            }}
+          >
+            Guardian Angel
+          </h1>
+          
+          <p 
+            className="text-lg sm:text-xl mb-2"
+            style={{ color: "#5c4a32" }}
+          >
+            World: <span style={{ color: "#4a8c59", fontWeight: "bold" }}>{gameId}</span>
+          </p>
+          
+          <p 
+            className="text-sm mb-8"
+            style={{ color: "#8b7355" }}
+          >
+            Guide your pookie through adventures, help them make friends, and watch them grow!
+          </p>
+          
+          {error && (
+            <p 
+              className="text-sm mb-4 p-2 rounded"
+              style={{ 
+                background: "#fecaca",
+                border: "2px solid #dc2626",
+                color: "#991b1b",
+              }}
+            >
+              {error}
+            </p>
+          )}
+          
+          <button
+            onClick={joinGame}
+            disabled={isJoining}
+            className="w-full sm:w-auto px-12 py-4 text-xl sm:text-2xl font-bold rounded-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:transform-none"
+            style={{
+              background: "linear-gradient(180deg, #7cb587 0%, #4a8c59 100%)",
+              border: "4px solid #2d6b3d",
+              color: "white",
+              boxShadow: "4px 4px 0 #1a4a28, 0 0 20px rgba(74, 140, 89, 0.4)",
+              textShadow: "2px 2px 0 #2d6b3d",
+            }}
+          >
+            {isJoining ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="animate-spin">⏳</span> Joining...
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                🪽 Join World
+              </span>
+            )}
+          </button>
+          
+          <button
+            onClick={() => router.push("/")}
+            className="mt-4 px-6 py-2 text-sm rounded"
+            style={{
+              background: "transparent",
+              border: "2px solid #a67c52",
+              color: "#8b5e34",
+            }}
+          >
+            ← Back to Home
+          </button>
+        </div>
+        
+        {/* Bottom decoration */}
+        <div 
+          className="absolute bottom-4 text-sm"
+          style={{ color: "#8b7355" }}
+        >
+          ✨ A world of adventure awaits ✨
         </div>
       </div>
     );
