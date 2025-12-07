@@ -87,12 +87,23 @@ interface PookieSpriteProps {
   onClick?: () => void;
 }
 
+type InventoryChange = {
+  itemId: string;
+  amount: number; // positive = gained, negative = lost
+  key: number; // unique key for animation
+};
+
 function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode, speechDistancePercent, onClick }: PookieSpriteProps) {
   const [position, setPosition] = useState(() => getPookiePosition(pookie.currentAction));
   const animationFrameRef = useRef<number | null>(null);
   const prevHealthRef = useRef<number>(pookie.health);
   const hurtTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [hurtState, setHurtState] = useState<{ isHurt: boolean; amount: number }>({ isHurt: false, amount: 0 });
+  
+  // Inventory change tracking
+  const prevInventoryRef = useRef<Map<string, number>>(new Map());
+  const inventoryChangeKeyRef = useRef(0);
+  const [inventoryChanges, setInventoryChanges] = useState<InventoryChange[]>([]);
 
   const color = POOKIE_COLORS[getPookieColorIndex(name)];
   
@@ -119,6 +130,46 @@ function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode,
   } else if (currentHealth > prevHealthRef.current) {
     // Health increased (healing), just update ref
     prevHealthRef.current = currentHealth;
+  }
+  
+  // Detect inventory changes
+  const currentInventoryMap = new Map(pookie.inventory.map(item => [item.id, item.amount]));
+  const prevInventoryMap = prevInventoryRef.current;
+  
+  // Check for changes
+  const changes: InventoryChange[] = [];
+  
+  // Check for new or increased items
+  currentInventoryMap.forEach((amount, itemId) => {
+    const prevAmount = prevInventoryMap.get(itemId) || 0;
+    if (amount > prevAmount) {
+      changes.push({ itemId, amount: amount - prevAmount, key: inventoryChangeKeyRef.current++ });
+    } else if (amount < prevAmount) {
+      changes.push({ itemId, amount: amount - prevAmount, key: inventoryChangeKeyRef.current++ });
+    }
+  });
+  
+  // Check for removed items
+  prevInventoryMap.forEach((prevAmount, itemId) => {
+    if (!currentInventoryMap.has(itemId)) {
+      changes.push({ itemId, amount: -prevAmount, key: inventoryChangeKeyRef.current++ });
+    }
+  });
+  
+  // Update ref and trigger animation if there are changes
+  if (changes.length > 0) {
+    prevInventoryRef.current = currentInventoryMap;
+    queueMicrotask(() => {
+      setInventoryChanges(prev => [...prev, ...changes]);
+      // Remove changes after animation completes
+      setTimeout(() => {
+        setInventoryChanges(prev => prev.filter(c => !changes.some(nc => nc.key === c.key)));
+      }, 1200);
+    });
+  } else if (currentInventoryMap.size !== prevInventoryMap.size || 
+             [...currentInventoryMap].some(([k, v]) => prevInventoryMap.get(k) !== v)) {
+    // Update ref even if no animation-worthy changes
+    prevInventoryRef.current = currentInventoryMap;
   }
   
   const isHurt = hurtState.isHurt;
@@ -311,9 +362,54 @@ function PookieSprite({ pookie, name, levelWidth, levelHeight, isOwn, debugMode,
         </div>
       )}
 
+      {/* Inventory change indicators */}
+      {inventoryChanges.map((change, index) => (
+        <div
+          key={change.key}
+          className={`absolute left-1/2 pointer-events-none ${change.amount > 0 ? "animate-item-gained" : "animate-item-lost"}`}
+          style={{
+            transform: "translateX(-50%)",
+            top: "-45px",
+            marginLeft: `${(index - (inventoryChanges.length - 1) / 2) * 30}px`,
+            fontSize: "16px",
+            fontWeight: "bold",
+            color: change.amount > 0 ? "#22c55e" : "#ef4444",
+            textShadow: change.amount > 0 
+              ? "2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 10px #22c55e"
+              : "2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 10px #ef4444",
+            zIndex: 202,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span className="inline-flex items-center gap-0.5">
+            {change.amount > 0 ? "+" : ""}{change.amount}
+            <span className="text-sm">📦</span>
+            <span className="text-xs opacity-80">{change.itemId.slice(0, 6)}</span>
+          </span>
+        </div>
+      ))}
+
+      {/* Inventory change glow effect */}
+      {inventoryChanges.length > 0 && (
+        <div 
+          className="absolute pointer-events-none animate-inventory-glow"
+          style={{
+            left: "-25px",
+            top: "-25px",
+            width: "70px",
+            height: "70px",
+            borderRadius: "50%",
+            background: inventoryChanges.some(c => c.amount > 0)
+              ? "radial-gradient(circle, rgba(34,197,94,0.5) 0%, rgba(34,197,94,0.2) 40%, transparent 70%)"
+              : "radial-gradient(circle, rgba(239,68,68,0.5) 0%, rgba(239,68,68,0.2) 40%, transparent 70%)",
+            zIndex: 199,
+          }}
+        />
+      )}
+
       {/* Character body */}
       <div
-        className={`relative ${isMoving ? "animate-moving" : ""} ${isThinking ? "animate-talking" : ""} ${isInteracting ? "animate-interacting" : ""} ${isDying ? "animate-dying" : ""} ${isDead && !isDying ? "animate-dead" : ""} ${isHit ? "animate-hit" : ""} ${isHurt ? "animate-hurt" : ""} ${isAttacking ? "animate-attacking" : ""}`}
+        className={`relative ${isMoving ? "animate-moving" : ""} ${isThinking ? "animate-talking" : ""} ${isInteracting ? "animate-interacting" : ""} ${isDying ? "animate-dying" : ""} ${isDead && !isDying ? "animate-dead" : ""} ${isHit ? "animate-hit" : ""} ${isHurt ? "animate-hurt" : ""} ${isAttacking ? "animate-attacking" : ""} ${inventoryChanges.length > 0 ? "animate-inventory-bounce" : ""}`}
         style={{ transform: facingLeft ? "scaleX(-1)" : "scaleX(1)" }}
       >
         {/* Shadow - smaller/different when dead */}

@@ -467,6 +467,76 @@ body {
 }
 
 /* ========================================
+   Inventory Change Animation
+   ======================================== */
+
+@keyframes itemGainedFloat {
+  0% { 
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-5px) scale(1.3);
+  }
+  40% {
+    transform: translateX(-50%) translateY(-15px) scale(1);
+  }
+  100% { 
+    opacity: 0;
+    transform: translateX(-50%) translateY(-50px) scale(0.8);
+  }
+}
+
+@keyframes itemLostFloat {
+  0% { 
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(5px) scale(1.3);
+  }
+  40% {
+    transform: translateX(-50%) translateY(-10px) scale(1);
+  }
+  100% { 
+    opacity: 0;
+    transform: translateX(-50%) translateY(-40px) scale(0.8);
+  }
+}
+
+@keyframes inventoryGlowPulse {
+  0% { opacity: 0; transform: scale(0.5); }
+  30% { opacity: 1; transform: scale(1.2); }
+  60% { opacity: 0.7; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.8); }
+}
+
+@keyframes inventoryBounce {
+  0%, 100% { transform: translateY(0) scaleX(var(--facing, 1)); }
+  25% { transform: translateY(-4px) scaleX(var(--facing, 1)); }
+  50% { transform: translateY(0) scaleX(var(--facing, 1)); }
+  75% { transform: translateY(-2px) scaleX(var(--facing, 1)); }
+}
+
+.animate-item-gained {
+  animation: itemGainedFloat 1.2s ease-out forwards;
+}
+
+.animate-item-lost {
+  animation: itemLostFloat 1.2s ease-out forwards;
+}
+
+.animate-inventory-glow {
+  animation: inventoryGlowPulse 1s ease-out forwards;
+}
+
+.animate-inventory-bounce {
+  animation: inventoryBounce 0.5s ease-out;
+}
+
+/* ========================================
    Thought Bubble Styles - Game Theme
    ======================================== */
 
