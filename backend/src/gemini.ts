@@ -22,6 +22,8 @@ export type PookieResponse =
   | { type: 'say'; message: string; thought: string }
   | { type: 'move-to-facility'; facilityId: string; thought: string }
   | { type: 'move-to-pookie'; pookieName: string; thought: string }
+  | { type: 'interact-with-facility'; facilityId: string; thought: string }
+  | { type: 'hit-pookie'; targetPookieName: string; thought: string }
   | { type: 'offer-trade'; targetPookieName: string; itemsOffered: TradeItems; itemsRequested: TradeItems; thought: string }
   | { type: 'accept-offer'; offerId: string; thought: string }
   | { type: 'reject-offer'; offerId: string; thought: string };
@@ -58,6 +60,12 @@ export async function askPookie(prompt: string, facilityIds: string[], pookieNam
       return { ...parsed, thought: parsed.thought ?? '' };
     }
     if (parsed.type === 'move-to-pookie' && pookieNames.includes(parsed.pookieName)) {
+      return { ...parsed, thought: parsed.thought ?? '' };
+    }
+    if (parsed.type === 'interact-with-facility' && facilityIds.includes(parsed.facilityId)) {
+      return { ...parsed, thought: parsed.thought ?? '' };
+    }
+    if (parsed.type === 'hit-pookie' && pookieNames.includes(parsed.targetPookieName)) {
       return { ...parsed, thought: parsed.thought ?? '' };
     }
     if (parsed.type === 'offer-trade' && pookieNames.includes(parsed.targetPookieName) && Array.isArray(parsed.itemsOffered) && Array.isArray(parsed.itemsRequested)) {

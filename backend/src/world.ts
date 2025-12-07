@@ -105,6 +105,18 @@ type PookieThought = (
     byPookieName: string,
     timestampMillis: number,
   }
+  | {
+    source: "got-hit",
+    byPookieName: string,
+    damage: number,
+    timestampMillis: number,
+  }
+  | {
+    source: "hit-someone",
+    targetPookieName: string,
+    damage: number,
+    timestampMillis: number,
+  }
 );
 
 type TradeOffer = {
@@ -151,7 +163,8 @@ type PookieAction = (
     y: number,
     facilityId: string,
     interactionName: string,
-    interactionId: string,
+    sinceTimestampMillis: number,
+    untilTimestampMillis: number,
   }
   | {
     type: "dead",
@@ -203,6 +216,8 @@ function generatePookiePersonality(): string {
     "greedy",
     "selfish",
     "arrogant",
+    "liar",
+    "honest",
   ];
   const goals = [
     "to find a friend",
@@ -210,6 +225,7 @@ function generatePookiePersonality(): string {
     "to have as much food as possible",
     "to fall in love",
     "to get revenge on a bully",
+    "to make sure that there is no violence in the world",
     "to save the world from a disaster that you are 100% sure exists, and let everyone know about it.",
     "to be mean to other pookies for no reason (you use insults such as 'pestlepuff' or 'stinkybun')",
   ];
@@ -410,6 +426,37 @@ export class World {
       }
     }
 
+    // make pookies that are interacting with facilities, but past their end timestamp, complete the interaction and give them a random item
+    for (const [pookieName, pookie] of Object.entries(this.getWorldState().pookies)) {
+      if (pookie.currentAction.type === 'interact-with-facility') {
+        if (now > pookie.currentAction.untilTimestampMillis) {
+          const facility = this.getWorldState().level.facilities[pookie.currentAction.facilityId];
+          
+          // Give the pookie a random item from the level's item types
+          const itemTypes = Object.keys(this.getWorldState().level.itemTypes);
+          if (itemTypes.length > 0) {
+            const randomItemId = randomElement(itemTypes);
+            this._addItems(pookieName, [{ itemId: randomItemId, amount: 1 }]);
+            
+            this._changeState().pookies[pookieName].thoughts.push({
+              source: 'facility',
+              text: `You received 1x ${randomItemId} from ${facility.displayName}!`,
+              timestampMillis: now,
+            });
+          }
+          
+          // Return to idle state
+          this._changeState().pookies[pookieName].currentAction = {
+            type: 'idle',
+            x: pookie.currentAction.x,
+            y: pookie.currentAction.y,
+            sinceTimestampMillis: now,
+            minIdleDurationMillis: 3000,
+          };
+        }
+      }
+    }
+
     // make pookies that are idle start an LLM chat to decide their next action
     for (const [pookieName, pookie] of Object.entries(this.getWorldState().pookies)) {
       if (pookie.currentAction.type === 'idle') {
@@ -441,6 +488,10 @@ export class World {
                 return `Trade completed with ${thought.withPookieName}: You gave ${thought.itemsGiven.map(i => `${i.amount}x ${i.itemId}`).join(', ')} and received ${thought.itemsReceived.map(i => `${i.amount}x ${i.itemId}`).join(', ')}`;
               case 'trade-rejected':
                 return `${thought.byPookieName} rejected your trade offer`;
+              case 'got-hit':
+                return `${thought.byPookieName} hit you for ${thought.damage} damage! Ouch!`;
+              case 'hit-someone':
+                return `You hit ${thought.targetPookieName} for ${thought.damage} damage!`;
               default: {
                 const _exhaustiveCheck: never = thought;
                 throw new Error(`Unknown thought source: ${_exhaustiveCheck}`);
@@ -501,6 +552,8 @@ export class World {
             - {"type": "say", "message": "<short message, max 1 sentence>", "thought": "<short reasoning, max 1 sentence>"} - In this case, pookies near you will hear you and be able to interact with you. What you say should be relatively short, 1 sentence maximum
             - {"type": "move-to-facility", "facilityId": "<facility id>", "thought": "<short reasoning, max 1 sentence>"} - to move to a facility
             - {"type": "move-to-pookie", "pookieName": "<pookie name>", "thought": "<short reasoning, max 1 sentence>"} - You can move either to a different pookie or to a facility.
+            - {"type": "interact-with-facility", "facilityId": "<facility id>", "thought": "<short reasoning, max 1 sentence>"} - Interact with a nearby facility. You must be within facilityInteractionDistance of the facility. After interacting, you will receive a random item!
+            - {"type": "hit-pookie", "targetPookieName": "<pookie name>", "thought": "<short reasoning, max 1 sentence>"} - Hit another pookie within speech distance! They will take damage. Only do this if you have a very good reason (they insulted you, stole from you, or you're just feeling mean).
             - {"type": "offer-trade", "targetPookieName": "<pookie name>", "itemsOffered": [{"itemId": "<item>", "amount": <num>}], "itemsRequested": [{"itemId": "<item>", "amount": <num>}], "thought": "<reasoning>"} - Offer a trade to a pookie within speech distance. You must have the items you're offering.
             - {"type": "accept-offer", "offerId": "<offer id>", "thought": "<reasoning>"} - Accept a pending trade offer. You must have the items requested.
             - {"type": "reject-offer", "offerId": "<offer id>", "thought": "<reasoning>"} - Reject a pending trade offer.
@@ -581,6 +634,148 @@ export class World {
                     };
                     break;
                   }
+                  
+                  case 'interact-with-facility': {
+                    const facility = this.getWorldState().level.facilities[chosenResponse.facilityId];
+                    const facilityInteractionDist = this.getWorldState().level.facilityInteractionDistance;
+                    const distToFacility = distance(pookie.currentAction.x, pookie.currentAction.y, facility.x, facility.y);
+                    
+                    // Check if pookie is within interaction distance
+                    if (distToFacility > facilityInteractionDist) {
+                      this._changeState().pookies[pookieName].thoughts.push({
+                        source: 'self-action-change',
+                        text: `Can't interact with ${facility.displayName} - too far away. Need to move closer first.`,
+                        timestampMillis: now,
+                      });
+                      this._changeState().pookies[pookieName].currentAction = {
+                        type: 'idle',
+                        x: pookie.currentAction.x,
+                        y: pookie.currentAction.y,
+                        sinceTimestampMillis: now,
+                        minIdleDurationMillis: 3_000,
+                      };
+                      break;
+                    }
+                    
+                    this._changeState().pookies[pookieName].thoughts.push({
+                      source: 'self-action-change',
+                      text: `Interacting with ${facility.displayName}...`,
+                      timestampMillis: now,
+                    });
+                    this._changeState().pookies[pookieName].currentAction = {
+                      type: 'interact-with-facility',
+                      x: pookie.currentAction.x,
+                      y: pookie.currentAction.y,
+                      facilityId: chosenResponse.facilityId,
+                      interactionName: facility.interactionName,
+                      sinceTimestampMillis: now,
+                      untilTimestampMillis: now + facility.interactionDurationMillis,
+                    };
+                    break;
+                  }
+                  
+                  case 'hit-pookie': {
+                    const targetPookieName = chosenResponse.targetPookieName;
+                    
+                    // Check if target pookie is within speech distance
+                    if (!pookiesWithinSpeechDistance.has(targetPookieName)) {
+                      this._changeState().pookies[pookieName].thoughts.push({
+                        source: 'self-action-change',
+                        text: `Can't hit ${targetPookieName} - they're too far away.`,
+                        timestampMillis: now,
+                      });
+                      this._changeState().pookies[pookieName].currentAction = {
+                        type: 'idle',
+                        x: pookie.currentAction.x,
+                        y: pookie.currentAction.y,
+                        sinceTimestampMillis: now,
+                        minIdleDurationMillis: 3_000,
+                      };
+                      break;
+                    }
+                    
+                    const targetPookieObj = this.getWorldState().pookies[targetPookieName];
+                    if (!targetPookieObj || targetPookieObj.currentAction.type === 'dead') {
+                      this._changeState().pookies[pookieName].thoughts.push({
+                        source: 'self-action-change',
+                        text: `Can't hit ${targetPookieName} - they're already dead or gone.`,
+                        timestampMillis: now,
+                      });
+                      this._changeState().pookies[pookieName].currentAction = {
+                        type: 'idle',
+                        x: pookie.currentAction.x,
+                        y: pookie.currentAction.y,
+                        sinceTimestampMillis: now,
+                        minIdleDurationMillis: 3_000,
+                      };
+                      break;
+                    }
+                    
+                    // Deal random damage between 10-25
+                    const damage = Math.floor(Math.random() * 16) + 10;
+                    const newHealth = targetPookieObj.health - damage;
+                    
+                    // Add thoughts for both pookies
+                    this._changeState().pookies[pookieName].thoughts.push({
+                      source: 'hit-someone',
+                      targetPookieName,
+                      damage,
+                      timestampMillis: now,
+                    });
+                    
+                    this._changeState().pookies[targetPookieName].thoughts.push({
+                      source: 'got-hit',
+                      byPookieName: pookieName,
+                      damage,
+                      timestampMillis: now,
+                    });
+                    
+                    // Apply damage
+                    this._changeState().pookies[targetPookieName].health = newHealth;
+                    
+                    // Check if the target pookie died
+                    if (newHealth <= 0) {
+                      const targetLocation = this._calculatePookieLocation(targetPookieObj, now);
+                      this._changeState().pookies[targetPookieName].currentAction = {
+                        type: 'dead',
+                        x: targetLocation.x,
+                        y: targetLocation.y,
+                        timestampMillis: now,
+                        sinceTimestampMillis: now,
+                        untilTimestampMillis: now + 60_000, // Dead for 60 seconds
+                      };
+                      this._changeState().pookies[targetPookieName].thoughts.push({
+                        source: 'self-action-change',
+                        text: `You died! You were killed by ${pookieName}.`,
+                        timestampMillis: now,
+                      });
+                      this._changeState().pookies[pookieName].thoughts.push({
+                        source: 'self-action-change',
+                        text: `You killed ${targetPookieName}!`,
+                        timestampMillis: now,
+                      });
+                    } else {
+                      // Interrupt the target pookie
+                      const targetLocation = this._calculatePookieLocation(targetPookieObj, now);
+                      this._changeState().pookies[targetPookieName].currentAction = {
+                        type: 'idle',
+                        x: targetLocation.x,
+                        y: targetLocation.y,
+                        sinceTimestampMillis: now,
+                        minIdleDurationMillis: 0, // Immediately think about what happened
+                      };
+                    }
+                    
+                    this._changeState().pookies[pookieName].currentAction = {
+                      type: 'idle',
+                      x: pookie.currentAction.x,
+                      y: pookie.currentAction.y,
+                      sinceTimestampMillis: now,
+                      minIdleDurationMillis: 5_000,
+                    };
+                    break;
+                  }
+                  
                   case 'say':
                     this._changeState().pookies[pookieName].thoughts.push({
                       source: 'self',
